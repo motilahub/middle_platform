@@ -1,5 +1,14 @@
 # AI财务助手
 
+## 系统介绍
+
+AI财务助手提供登录认证、工作台应用入口、应用可见范围、用户管理和单点登录配置管理。管理员可在“系统配置 → 单点登录”下维护两类配置：
+
+- **外部访入**：配置 OA 或其他系统如何登录进入本系统。
+- **内部访出**：配置本系统如何跳转并登录到其他业务系统。
+
+两类配置均支持新建、编辑、删除、批量删除、全选、分页和启用/停用。列表会展示系统地址和校验地址；编辑抽屉会在打开后回填记录的协议字段。配置表单提供编码、名称、协议（OIDC/CAS/Ticket/SAML）、系统地址、校验地址、授权地址、回调地址、Issuer、Client ID、用户标识字段、优先级和备注等通用字段。实际 SSO 跳转接口根据 OA 和目标系统的协议再行接入。
+
 ## Docker 开发模式
 
 日常开发使用以下命令启动。项目目录会以数据卷映射到容器 `/app`，修改本地 `src`、`index.html` 等文件后，容器内的 Vite 会自动热更新，无需重新构建镜像：
@@ -50,12 +59,44 @@ docker compose up -d --build
 
 生产部署前必须修改 `.env` 中的数据库密码与 `SESSION_SECRET`；HTTPS 部署时设置 `COOKIE_SECURE=true`。
 
-## OA ticket
+## 外部访入
 
-配置 `OA_VERIFY_URL` 后，OA 可跳转到：
+外部系统应跳转到以下格式的地址；`ssoCode` 必须是“系统配置 → 单点登录 → 外部访入”中已启用的配置编码：
 
 ```text
-http://portal.example.com/login?ticket=一次性凭证
+http://portal.example.com/login?ssoCode=配置编码&ticket=一次性凭证
 ```
 
-API 会 POST `{ "ticket": "..." }` 到 `OA_VERIFY_URL`，并使用响应中的 `userId` 匹配本地用户编号。
+前端会将 ticket 发送至 `/api/auth/sso/:ssoCode/exchange`。携带 ticket 的访问会先清除浏览器中的旧会话；同一个 ticket 仅发起一次校验，校验失败后停留在登录页。后端仅查询对应的已启用入站配置，POST `{ "ticket": "..." }` 至其“校验地址”，按“用户标识字段”从响应中获取用户编号，并匹配本地用户。该字段支持任意层级的 JSON 点路径，例如 `userId`、`data.userId`、`data.result.account.userId`。找不到本地用户时返回 `403`，不会创建会话。成功后会跳转至配置的“登录成功跳转地址”；推荐填写系统内相对路径，例如 `/config/dashboard`，也支持同源完整地址。非同源地址会回退至工作台 `/`。
+
+当前认证处理器已实现 `Ticket` 协议；OIDC、CAS、SAML 可先维护配置，但需要按目标系统协议补充各自的认证适配器后才能启用实际登录。
+
+表单会按协议显示字段：`Ticket` 显示校验地址与登录成功跳转地址；`CAS` 显示 Ticket 校验地址和服务回调地址；`OIDC` 显示 Issuer、授权地址、Token/用户信息地址、回调地址与 Client ID；`SAML` 显示 IdP Issuer、SAML 元数据/校验地址与断言消费地址（ACS）。切换协议时，原协议特有字段不会随新协议提交。
+
+## 模拟 OA SSO 服务
+
+工程内的 `mock_sso` 是一个基于 Conda `py312` 环境的本地模拟 OA 服务，用于联调“外部访入”。它提供浏览器发起入口、一次性 ticket 和校验回调接口：
+
+- `GET /`：选择模拟用户后发起单点登录，浏览器跳转至 `http://localhost:8080/login?ssoCode=mock_oa&ticket=...`。
+- `POST /api/tickets/verify`：接收 `{ "ticket": "..." }`，返回 `{ "userId": "admin", "name": "Admin" }`；ticket 默认 10 秒有效，成功验证后立即失效。
+- `GET /api/health`：健康检查。
+
+启动服务：
+
+```bash
+conda run -n py312 python mock_sso/app.py
+```
+
+浏览器访问 `http://localhost:9000`，选择用户后即可跳转到本系统。模拟服务默认提供 `admin:Admin`、`demo:Demo`、`other:Other` 三个用户；通过 `SSO_USERS` 可覆盖：
+
+```bash
+SSO_USERS='admin:Admin,alice:Alice' conda run -n py312 python mock_sso/app.py
+```
+
+在“外部访入”中新建以下联调配置：编码 `mock_oa`，协议 `Ticket`，认证系统地址 `http://host.docker.internal:9000`，校验地址 `http://host.docker.internal:9000/api/tickets/verify`，登录成功跳转地址 `/config/dashboard`，用户标识字段 `userId`。macOS Docker Desktop 中 `host.docker.internal` 可从容器访问宿主机的 9000 服务。
+
+联调权限预期：本地 `admin` 为超级管理员，可登录并访问系统配置；本地 `demo` 为普通用户，可登录工作台但访问系统配置会被拦截；远端 `other` 不配置本地用户，登录会被 `403` 拦截。服务参数：`SSO_TARGET_URL`（目标登录页）、`SSO_TICKET_TTL_SECONDS`（有效期秒数）、`SSO_HOST`、`SSO_PORT`。运行模拟服务的单元测试：
+
+```bash
+(cd mock_sso && conda run -n py312 python -m unittest -v)
+```
