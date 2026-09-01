@@ -7,7 +7,7 @@ const defaults: SystemSettings = {
   systemTitle: 'AI财务助手',
   browserTitle: 'AI财务助手',
   loginText: '后台配置系统',
-  showWorkbenchHeader: false,
+  showWorkbenchHeader: true,
 }
 interface SystemSettingsValue { settings: SystemSettings; refresh: () => Promise<void>; update: (settings: SystemSettings) => void; defaultLogo: string }
 const SystemSettingsContext = createContext<SystemSettingsValue | null>(null)

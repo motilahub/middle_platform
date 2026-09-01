@@ -60,7 +60,7 @@ export async function initDatabase() {
       title_logo TEXT,
       login_text VARCHAR(255) NOT NULL DEFAULT '后台配置系统',
       footer_record VARCHAR(255),
-      show_workbench_header BOOLEAN NOT NULL DEFAULT FALSE,
+      show_workbench_header BOOLEAN NOT NULL DEFAULT TRUE,
       api_rate_limit_per_minute INTEGER NOT NULL DEFAULT 30,
       password_min_length INTEGER NOT NULL DEFAULT 8,
       password_require_uppercase BOOLEAN NOT NULL DEFAULT TRUE,
@@ -74,7 +74,8 @@ export async function initDatabase() {
   `)
   await pool.query(`
     ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS api_rate_limit_per_minute INTEGER NOT NULL DEFAULT 30;
-    ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS show_workbench_header BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS show_workbench_header BOOLEAN NOT NULL DEFAULT TRUE;
+    ALTER TABLE system_settings ALTER COLUMN show_workbench_header SET DEFAULT TRUE;
     ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS password_min_length INTEGER NOT NULL DEFAULT 8;
     ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS password_require_uppercase BOOLEAN NOT NULL DEFAULT TRUE;
     ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS password_require_lowercase BOOLEAN NOT NULL DEFAULT TRUE;
