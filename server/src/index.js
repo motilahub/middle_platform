@@ -46,6 +46,13 @@ app.use((_req, res, next) => {
 })
 app.use('/uploads', express.static(uploadRoot, { fallthrough: false, maxAge: '7d' }))
 
+// Versioned API paths are canonical for new clients; legacy /api paths remain
+// available for existing integrations during the migration period.
+app.use((req, _res, next) => {
+  req.url = req.url.replace(/^\/api\/v1(?=\/|$)/, '/api')
+  next()
+})
+
 const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next)
 const requireAuth = (req, res, next) => req.session.user ? next() : res.status(401).json({ message: '请先登录' })
 const requireAdmin = (req, res, next) => req.session.user && req.session.user.role !== 'user' ? next() : res.status(403).json({ message: '没有管理权限' })

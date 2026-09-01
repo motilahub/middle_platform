@@ -14,7 +14,7 @@
 
 ## 数据与迁移
 
-迁移文件：`server/src/db/migrations/002_add_outbound_ticket_sso.sql`
+迁移文件：`server/src/db/migrations/001_create_platform_tables.sql`、`server/src/db/migrations/002_add_outbound_ticket_sso.sql`
 
 - `sso_configs.client_secret_hash`：目标系统客户端密钥的 bcrypt 摘要。
 - `sso_configs.ticket_ttl_seconds`：Ticket 有效期，范围 5～300 秒。
