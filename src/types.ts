@@ -21,3 +21,30 @@ export interface DashboardApp {
   enabled: boolean
   userIds: number[]
 }
+
+export type SsoDirection = 'inbound' | 'outbound'
+export type SsoProtocol = 'oidc' | 'cas' | 'ticket' | 'saml'
+
+export interface SsoConfig {
+  id: number
+  code: string
+  name: string
+  direction: SsoDirection
+  protocol: SsoProtocol
+  systemUrl: string
+  verifyUrl?: string
+  authorizeUrl?: string
+  callbackUrl?: string
+  issuer?: string
+  clientId?: string
+  userIdentifier: string
+  enabled: boolean
+  remark?: string
+  priority: number
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface SsoExchangeResult extends User {
+  redirectUrl?: string
+}

@@ -7,6 +7,7 @@ import Workbench from './pages/Workbench'
 import ConfigLayout from './pages/config/ConfigLayout'
 import DashboardConfig from './pages/config/DashboardConfig'
 import UserConfig from './pages/config/UserConfig'
+import SsoConfig from './pages/config/SsoConfig'
 
 function Guard({ children, adminOnly = false }: { children: JSX.Element; adminOnly?: boolean }) {
   const { user, loading } = useAuth()
@@ -29,6 +30,8 @@ export default function App() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DashboardConfig />} />
         <Route path="users" element={<UserConfig />} />
+        <Route path="sso/inbound" element={<SsoConfig direction="inbound" />} />
+        <Route path="sso/outbound" element={<SsoConfig direction="outbound" />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -1,23 +1,44 @@
 import { Form, Input, Button, Card, Typography, message } from 'antd'
 import { LockOutlined, UserOutlined } from '@ant-design/icons'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import logo from '../images/logo.png'
 
+function ssoRedirectPath(redirectUrl?: string) {
+  if (!redirectUrl) return '/'
+  try {
+    const target = new URL(redirectUrl, window.location.origin)
+    return target.origin === window.location.origin ? `${target.pathname}${target.search}${target.hash}` : '/'
+  } catch { return '/' }
+}
+
 export default function Login() {
   const navigate = useNavigate(); const location = useLocation()
-  const { user, refresh } = useAuth()
+  const { user, refresh, logout } = useAuth()
   const [form] = Form.useForm<{ code: string; password: string }>()
+  const handledSsoAttempt = useRef<string | null>(null)
   useEffect(() => {
     const ticket = new URLSearchParams(location.search).get('ticket')
+    const ssoCode = new URLSearchParams(location.search).get('ssoCode')
     if (!ticket) return
-    api.exchangeOaTicket(ticket)
-      .then(async () => { await refresh(); navigate('/', { replace: true }) })
-      .catch(() => message.error('OA 登录凭证无效或已过期'))
-  }, [location.search, navigate])
-  useEffect(() => { if (user) navigate('/', { replace: true }) }, [user, navigate])
+    const attemptKey = `${ssoCode || ''}:${ticket}`
+    if (handledSsoAttempt.current === attemptKey) return
+    handledSsoAttempt.current = attemptKey
+    void (async () => {
+      // An SSO failure must not fall back to a previously authenticated browser session.
+      await logout()
+      if (!ssoCode) { message.error('未指定外部访入配置'); return }
+      try {
+        const result = await api.exchangeSsoTicket(ssoCode, ticket)
+        await refresh()
+        navigate(ssoRedirectPath(result.redirectUrl), { replace: true })
+      } catch (error) { message.error((error as Error).message) }
+    })()
+  }, [location.search, logout, navigate, refresh])
+  const isSsoAttempt = Boolean(new URLSearchParams(location.search).get('ticket'))
+  useEffect(() => { if (user && !isSsoAttempt) navigate('/', { replace: true }) }, [user, isSsoAttempt, navigate])
   const submit = async (values: { code: string; password: string }) => {
     try { await api.login(values.code, values.password); await refresh(); const from = (location.state as { from?: string } | null)?.from || '/'; navigate(from, { replace: true }) }
     catch (error) { message.error((error as Error).message) }
