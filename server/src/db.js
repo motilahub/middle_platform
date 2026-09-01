@@ -1,5 +1,6 @@
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
+import { runMigrations } from './db/migrate.js'
 
 export const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 
@@ -85,6 +86,7 @@ export async function initDatabase() {
     ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS password_require_special BOOLEAN NOT NULL DEFAULT TRUE;
     ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS password_require_number BOOLEAN NOT NULL DEFAULT TRUE;
   `)
+  await runMigrations(pool)
   const exists = await pool.query('SELECT id FROM users WHERE code=$1', ['admin'])
   if (!exists.rowCount) {
     const hash = await bcrypt.hash('admin', 12)
@@ -103,19 +105,8 @@ export function mapApp(row) {
     id: Number(row.id), code: row.code, name: row.name, priority: row.priority,
     url: row.url, enabled: row.enabled, img: row.image_original || undefined,
     imgThumbnail: row.image_thumbnail || undefined, imgFileName: row.image_filename || undefined,
+    outboundSsoConfigId: row.outbound_sso_config_id ? Number(row.outbound_sso_config_id) : undefined,
     userIds: (row.user_ids || []).map(Number),
-  }
-}
-
-export function mapSsoConfig(row) {
-  return {
-    id: Number(row.id), code: row.code, name: row.name, direction: row.direction,
-    protocol: row.protocol, systemUrl: row.system_url, verifyUrl: row.verify_url || undefined,
-    authorizeUrl: row.authorize_url || undefined, callbackUrl: row.callback_url || undefined,
-    issuer: row.issuer || undefined, clientId: row.client_id || undefined,
-    userIdentifier: row.user_identifier || 'userId', enabled: row.enabled,
-    remark: row.remark || undefined, priority: row.priority,
-    createdAt: row.created_at, updatedAt: row.updated_at,
   }
 }
 
