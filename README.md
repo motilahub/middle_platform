@@ -8,7 +8,7 @@
 - **用户与权限**：支持超级管理员、管理员和普通用户；普通用户不能进入系统配置。
 - **系统配置**：维护系统名称、浏览器 Title、Logo、登录页文字、页脚备案和工作台 Header。首次初始化默认显示 Header。
 - **安全策略**：支持 API 访问频率限制、密码长度和字符组成策略；生产环境强制使用安全 Session 密钥。
-- **单点登录**：管理外部访入和内部访出配置，当前已实现 Ticket 认证处理器，并预留 OIDC、CAS、SAML 字段。
+- **单点登录**：已实现 Ticket 外部访入和内部访出，支持一次性凭证、用户权限校验、目标系统客户端密钥及工作台应用关联，并预留 OIDC、CAS、SAML 字段。
 - **安全会话**：使用 PostgreSQL 服务端 Session、HttpOnly Cookie、CSRF Token 和基础安全响应头。
 - **离线部署**：可将前端、API、PostgreSQL 镜像和部署脚本打包为一个无需源码的部署归档。
 
@@ -116,7 +116,18 @@ Body: { "ticket": "..." }
 
 Ticket 仅允许校验一次。校验结果中的用户标识字段支持任意层级的 JSON 点路径，例如 `userId`、`data.userId`。系统只允许匹配本地用户的 Ticket 登录，找不到本地用户时返回 `403`。
 
-当前认证处理器支持 `Ticket`；OIDC、CAS、SAML 可维护配置，但需要补充对应适配器后才能启用实际认证。
+内部访出 Ticket 由平台签发，用户从工作台点击已关联的应用后跳转至目标系统；目标系统通过 Bearer 客户端密钥调用平台校验接口，Ticket 校验成功后立即失效。签发过程同时校验当前用户的应用可见权限。
+
+```text
+POST /api/me/apps/:appId/sso-ticket
+POST /api/auth/sso/outbound/:ssoCode/verify
+```
+
+当前外部访入和内部访出的认证处理器均支持 `Ticket`；OIDC、CAS、SAML 可维护配置，但需要补充对应适配器后才能启用实际认证。
+
+Ticket 模拟 OA 的完整配置、启动命令、联调流程和常见问题请参阅 [`docs/sso-ticket-inbound-demo.md`](docs/sso-ticket-inbound-demo.md)。
+
+内部访出 Ticket 的属性配置、工作台关联、目标系统接口和联调流程请参阅 [`docs/sso-ticket-outbound-demo.md`](docs/sso-ticket-outbound-demo.md)。
 
 ## 模拟 SSO 服务
 
@@ -132,18 +143,40 @@ conda run -n py312 python mock_sso/app.py
 (cd mock_sso && conda run -n py312 python -m unittest -v)
 ```
 
+`mock_target_sso` 提供被平台单点登录的轻量目标系统：
+
+```bash
+cd mock_target_sso
+TARGET_CLIENT_SECRET='mock-target-secret-2026' \
+MIDDLE_PLATFORM_VERIFY_URL='http://localhost:8088/api/auth/sso/outbound/mock_target/verify' \
+conda run -n py312 python app.py
+```
+
+访问目标系统的推荐方式是从平台工作台点击已关联的应用。运行 Demo 测试：
+
+```bash
+(cd mock_target_sso && conda run -n py312 python -m unittest -v)
+```
+
 ## 项目结构
 
 ```text
 src/                         React 前端
+src/platform/sso/            SSO 前端类型与 API
+src/shared/                  前端共享请求能力
 server/src/                  Express API 与数据库初始化
+server/src/platform/sso/     SSO 后端平台模块
+server/src/db/migrations/    顺序执行的数据库迁移
 mock_sso/                    本地 SSO 联调服务
+mock_target_sso/             内部访出目标系统联调服务
 deployment/                  离线部署模板
 scripts/package-offline.sh   离线镜像打包脚本
 docker-compose.yaml          Docker 开发配置
 Dockerfile.web               Web 生产镜像
 server/Dockerfile            API 生产镜像
 ```
+
+面向多行业扩展的 Monorepo 目录、模块边界、依赖方向、数据库迁移、多租户与权限规范请参阅 [`docs/系统架构.md`](docs/系统架构.md)。该文档是整个工程后续开发和模块接入的架构基准。
 
 ## 常用命令
 

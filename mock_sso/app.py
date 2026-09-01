@@ -19,7 +19,7 @@ from flask import Flask, Response, jsonify, redirect, request
 
 app = Flask(__name__)
 
-DEFAULT_TARGET_URL = "http://localhost:8080/login?ssoCode=mock_oa"
+DEFAULT_TARGET_URL = "http://localhost:8088/login?ssoCode=mock_oa"
 TICKET_TTL_SECONDS = int(os.getenv("SSO_TICKET_TTL_SECONDS", "10"))
 TARGET_URL = os.getenv("SSO_TARGET_URL", DEFAULT_TARGET_URL)
 
