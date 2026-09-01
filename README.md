@@ -178,10 +178,15 @@ server/Dockerfile            API 生产镜像
 
 面向多行业扩展的 Monorepo 目录、模块边界、依赖方向、数据库迁移、多租户与权限规范请参阅 [`docs/系统架构.md`](docs/系统架构.md)。该文档是整个工程后续开发和模块接入的架构基准。
 
+当前代码已开始按该规范适配：前端使用 `src/app` 组合路由，后端使用 `server/src/bootstrap/module-registry.js` 注册平台和业务模块；新增行业功能请从 `src/modules` 与 `server/src/modules` 的模块模板开始。
+
+新客户端通过公共请求层访问 `/api/v1`；服务端暂时保留 `/api` 兼容路径。平台基础表和增量变更由 `server/src/db/migrations/` 顺序迁移，禁止在业务入口中新增建表 DDL。
+
 ## 常用命令
 
 ```bash
 npm run build                # 前端类型检查与生产构建
+(cd server && npm test)      # 后端模块与 SSO 单元测试
 docker compose up -d         # 启动开发环境
 docker compose down          # 停止开发环境
 ```

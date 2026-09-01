@@ -7,7 +7,8 @@ import connectPgSimple from 'connect-pg-simple'
 import bcrypt from 'bcryptjs'
 import sharp from 'sharp'
 import { initDatabase, mapApp, mapSecuritySettings, mapSystemSettings, mapUser, pool } from './db.js'
-import { createSsoModule, registerSsoPublicRoutes, registerSsoRoutes } from './platform/sso/index.js'
+import { createSsoModule } from './platform/sso/index.js'
+import { registerBusinessModules, registerProtectedPlatformModules, registerPublicPlatformModules } from './bootstrap/module-registry.js'
 
 const app = express()
 const port = Number(process.env.PORT || 3000)
@@ -45,6 +46,13 @@ app.use((_req, res, next) => {
 })
 app.use('/uploads', express.static(uploadRoot, { fallthrough: false, maxAge: '7d' }))
 
+// Versioned API paths are canonical for new clients; legacy /api paths remain
+// available for existing integrations during the migration period.
+app.use((req, _res, next) => {
+  req.url = req.url.replace(/^\/api\/v1(?=\/|$)/, '/api')
+  next()
+})
+
 const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next)
 const requireAuth = (req, res, next) => req.session.user ? next() : res.status(401).json({ message: '请先登录' })
 const requireAdmin = (req, res, next) => req.session.user && req.session.user.role !== 'user' ? next() : res.status(403).json({ message: '没有管理权限' })
@@ -73,10 +81,11 @@ app.get('/api/auth/csrf', (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   res.json({ token: issueCsrfToken(req) })
 })
-registerSsoPublicRoutes(app, ssoModule.controller, { asyncRoute, rateLimiter: apiRateLimiter })
+registerPublicPlatformModules(app, { asyncRoute, rateLimiter: apiRateLimiter, ssoModule })
 app.use('/api', requireCsrf)
 app.use('/api', apiRateLimiter)
-registerSsoRoutes(app, ssoModule.controller, { asyncRoute, requireAuth, requireAdmin })
+registerProtectedPlatformModules(app, { asyncRoute, requireAuth, requireAdmin, ssoModule })
+registerBusinessModules(app, { asyncRoute, requireAuth, requireAdmin, pool })
 
 app.post('/api/auth/login', asyncRoute(async (req, res) => {
   const result = await pool.query('SELECT * FROM users WHERE code=$1', [String(req.body.code || '').trim()])

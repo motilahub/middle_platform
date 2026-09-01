@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "scripts": { "start": "node src/index.js", "test": "node --test src/platform/sso/*.test.js" },
+  "scripts": { "start": "node src/index.js", "test": "node --test src/platform/sso/ticket.test.js src/bootstrap/module-contract.test.js" },
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "connect-pg-simple": "^10.0.0",
