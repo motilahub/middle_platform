@@ -5,11 +5,12 @@ import 'antd/dist/reset.css'
 import './styles.css'
 import App from './App'
 import { AuthProvider } from './auth'
+import { SystemSettingsProvider } from './system-settings'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <AuthProvider><App /></AuthProvider>
+      <SystemSettingsProvider><AuthProvider><App /></AuthProvider></SystemSettingsProvider>
     </BrowserRouter>
   </React.StrictMode>,
 )

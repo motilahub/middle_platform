@@ -48,3 +48,24 @@ export interface SsoConfig {
 export interface SsoExchangeResult extends User {
   redirectUrl?: string
 }
+
+export interface SystemSettings {
+  systemTitle: string
+  browserTitle: string
+  systemLogo?: string | null
+  titleLogo?: string | null
+  loginText: string
+  footerRecord?: string
+  showWorkbenchHeader: boolean
+  updatedAt?: string
+}
+
+export interface SecuritySettings {
+  apiRateLimitPerMinute: number
+  passwordMinLength: number
+  passwordRequireUppercase: boolean
+  passwordRequireLowercase: boolean
+  passwordRequireSpecial: boolean
+  passwordRequireNumber: boolean
+  updatedAt?: string
+}

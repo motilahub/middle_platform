@@ -2,7 +2,7 @@
 
 ## 系统介绍
 
-AI财务助手提供登录认证、工作台应用入口、应用可见范围、用户管理和单点登录配置管理。管理员可在“系统配置 → 单点登录”下维护两类配置：
+AI财务助手提供登录认证、工作台应用入口、应用可见范围、用户管理和单点登录配置管理。管理员可在“系统配置 → 基础配置”维护系统 Logo、系统标题、浏览器 Title/Title Logo、登录页文字和页脚备案信息；维护表单在桌面端采用两列布局，移动端收为单列。“控制台管理”中的“显示 Header”开关可控制工作台是否显示顶部 Header，Header 左侧展示系统 Logo 和系统名称，右侧提供控制台、当前用户和退出操作区，默认不显示；字号、间距与后台管理 Header 保持一致。“系统配置 → 系统安全”可维护接口频率限制和用户密码强度：接口默认按来源 IP 在滚动 60 秒内限制 30 次请求，超过后返回 HTTP 429；密码策略可设置最小长度及大写字母、小写字母、数字、特殊符号要求，创建用户或修改密码时立即生效。在“系统配置 → 单点登录”下维护两类配置：
 
 - **外部访入**：配置 OA 或其他系统如何登录进入本系统。
 - **内部访出**：配置本系统如何跳转并登录到其他业务系统。
@@ -16,6 +16,8 @@ AI财务助手提供登录认证、工作台应用入口、应用可见范围、
 ```bash
 docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d --build
 ```
+
+`.gitignore` 已排除依赖目录、构建产物、环境变量、本地日志、Python 缓存和 macOS/编辑器元数据；`.env.example` 保留在版本控制中作为配置模板。
 
 访问 `http://localhost:8080`。宿主机不使用 5173 端口，5173 仅是容器内 Vite 端口并映射为宿主机 8080。停止服务：
 
@@ -57,7 +59,9 @@ docker compose up -d --build
 
 数据保存在 `postgres_data` 卷，上传图片保存在 `upload_data` 卷。普通的容器重建不会清空数据。
 
-生产部署前必须修改 `.env` 中的数据库密码与 `SESSION_SECRET`；HTTPS 部署时设置 `COOKIE_SECURE=true`。
+生产部署前必须修改 `.env` 中的数据库密码与至少 32 位的随机 `SESSION_SECRET`；生产模式若未提供有效的 `SESSION_SECRET`，API 将拒绝启动。暂未部署 HTTPS 时保持 `COOKIE_SECURE=false`；接入 HTTPS 后必须设置为 `true`，并由入口网关完成 HTTP 跳转 HTTPS。
+
+当前登录采用 PostgreSQL 服务端 Session：浏览器仅保存 `HttpOnly`、`SameSite=Lax` 的会话 ID，登录及 SSO 成功后会重建 Session。所有会修改数据的 API 均要求携带同源 CSRF Token，API 和生产 Nginx 均发送基础安全响应头。
 
 ## 外部访入
 
@@ -67,7 +71,7 @@ docker compose up -d --build
 http://portal.example.com/login?ssoCode=配置编码&ticket=一次性凭证
 ```
 
-前端会将 ticket 发送至 `/api/auth/sso/:ssoCode/exchange`。携带 ticket 的访问会先清除浏览器中的旧会话；同一个 ticket 仅发起一次校验，校验失败后停留在登录页。后端仅查询对应的已启用入站配置，POST `{ "ticket": "..." }` 至其“校验地址”，按“用户标识字段”从响应中获取用户编号，并匹配本地用户。该字段支持任意层级的 JSON 点路径，例如 `userId`、`data.userId`、`data.result.account.userId`。找不到本地用户时返回 `403`，不会创建会话。成功后会跳转至配置的“登录成功跳转地址”；推荐填写系统内相对路径，例如 `/config/dashboard`，也支持同源完整地址。非同源地址会回退至工作台 `/`。
+前端会将 ticket 通过 `POST /api/auth/sso/:ssoCode/exchange` 发送至本系统。携带 ticket 的访问会先清除浏览器中的旧会话；同一个 ticket 仅发起一次校验，校验失败后停留在登录页。后端仅查询对应的已启用入站配置，POST `{ "ticket": "..." }` 至其“校验地址”，按“用户标识字段”从响应中获取用户编号，并匹配本地用户。该字段支持任意层级的 JSON 点路径，例如 `userId`、`data.userId`、`data.result.account.userId`。找不到本地用户时返回 `403`，不会创建会话。成功后会跳转至配置的“登录成功跳转地址”；推荐填写系统内相对路径，例如 `/config/dashboard`，也支持同源完整地址。非同源地址会回退至工作台 `/`。
 
 当前认证处理器已实现 `Ticket` 协议；OIDC、CAS、SAML 可先维护配置，但需要按目标系统协议补充各自的认证适配器后才能启用实际登录。
 
