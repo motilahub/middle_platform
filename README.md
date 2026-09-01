@@ -166,6 +166,12 @@ src/platform/sso/            SSO 前端类型与 API
 src/shared/                  前端共享请求能力
 server/src/                  Express API 与数据库初始化
 server/src/platform/sso/     SSO 后端平台模块
+server/src/platform/identity/ 用户认证与用户管理
+server/src/platform/workbench/ 工作台应用与图标管理
+server/src/platform/settings/ 系统与安全配置
+server/src/platform/health/   健康检查
+server/src/middleware/        认证、CSRF、限流和 HTTP 公共中间件
+server/src/shared/           无业务归属的映射和公共工具
 server/src/db/migrations/    顺序执行的数据库迁移
 mock_sso/                    本地 SSO 联调服务
 mock_target_sso/             内部访出目标系统联调服务
@@ -178,9 +184,11 @@ server/Dockerfile            API 生产镜像
 
 面向多行业扩展的 Monorepo 目录、模块边界、依赖方向、数据库迁移、多租户与权限规范请参阅 [`docs/系统架构.md`](docs/系统架构.md)。该文档是整个工程后续开发和模块接入的架构基准。
 
-当前代码已开始按该规范适配：前端使用 `src/app` 组合路由，后端使用 `server/src/bootstrap/module-registry.js` 注册平台和业务模块；新增行业功能请从 `src/modules` 与 `server/src/modules` 的模块模板开始。
+当前代码已按该规范适配：前端使用 `src/app` 组合路由，后端使用 `server/src/bootstrap/module-registry.js` 注册平台和业务模块；身份、工作台、系统设置、健康检查和 SSO 已按平台边界拆分，`server/src/index.js` 仅负责基础设施启动与依赖装配。新增行业功能请从 `src/modules` 与 `server/src/modules` 的模块模板开始。
 
 新客户端通过公共请求层访问 `/api/v1`；服务端暂时保留 `/api` 兼容路径。平台基础表和增量变更由 `server/src/db/migrations/` 顺序迁移，禁止在业务入口中新增建表 DDL。
+
+业务模块通过 `ENABLED_MODULES` 按需加载，例如 `ENABLED_MODULES=education.sunny-class,finance`。模块放在 `server/src/modules/<module-key>/`，由 `server/src/bootstrap/module-loader.js` 发现、校验依赖、执行迁移并注册路由；未配置的业务模块不会加载。
 
 ## 常用命令
 
