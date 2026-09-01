@@ -52,8 +52,34 @@ export async function initDatabase() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS system_settings (
+      id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      system_title VARCHAR(120) NOT NULL DEFAULT 'AI财务助手',
+      browser_title VARCHAR(120) NOT NULL DEFAULT 'AI财务助手',
+      system_logo TEXT,
+      title_logo TEXT,
+      login_text VARCHAR(255) NOT NULL DEFAULT '后台配置系统',
+      footer_record VARCHAR(255),
+      show_workbench_header BOOLEAN NOT NULL DEFAULT FALSE,
+      api_rate_limit_per_minute INTEGER NOT NULL DEFAULT 30,
+      password_min_length INTEGER NOT NULL DEFAULT 8,
+      password_require_uppercase BOOLEAN NOT NULL DEFAULT TRUE,
+      password_require_lowercase BOOLEAN NOT NULL DEFAULT TRUE,
+      password_require_special BOOLEAN NOT NULL DEFAULT TRUE,
+      password_require_number BOOLEAN NOT NULL DEFAULT TRUE,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
     CREATE INDEX IF NOT EXISTS idx_sso_configs_direction_priority ON sso_configs(direction, priority, id);
     CREATE INDEX IF NOT EXISTS idx_dashboard_apps_priority ON dashboard_apps(priority, id);
+  `)
+  await pool.query(`
+    ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS api_rate_limit_per_minute INTEGER NOT NULL DEFAULT 30;
+    ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS show_workbench_header BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS password_min_length INTEGER NOT NULL DEFAULT 8;
+    ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS password_require_uppercase BOOLEAN NOT NULL DEFAULT TRUE;
+    ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS password_require_lowercase BOOLEAN NOT NULL DEFAULT TRUE;
+    ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS password_require_special BOOLEAN NOT NULL DEFAULT TRUE;
+    ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS password_require_number BOOLEAN NOT NULL DEFAULT TRUE;
   `)
   const exists = await pool.query('SELECT id FROM users WHERE code=$1', ['admin'])
   if (!exists.rowCount) {
@@ -61,6 +87,7 @@ export async function initDatabase() {
     await pool.query("INSERT INTO users(id,uuid,code,name,password_hash,role) VALUES(1,'00000000-0000-4000-8000-000000000001','admin','超级管理员',$1,'super_admin')", [hash])
     await pool.query("SELECT setval(pg_get_serial_sequence('users','id'), GREATEST((SELECT MAX(id) FROM users), 1))")
   }
+  await pool.query('INSERT INTO system_settings(id) VALUES(1) ON CONFLICT (id) DO NOTHING')
 }
 
 export function mapUser(row) {
@@ -85,5 +112,30 @@ export function mapSsoConfig(row) {
     userIdentifier: row.user_identifier || 'userId', enabled: row.enabled,
     remark: row.remark || undefined, priority: row.priority,
     createdAt: row.created_at, updatedAt: row.updated_at,
+  }
+}
+
+export function mapSystemSettings(row) {
+  return {
+    systemTitle: row.system_title,
+    browserTitle: row.browser_title,
+    systemLogo: row.system_logo || undefined,
+    titleLogo: row.title_logo || undefined,
+    loginText: row.login_text,
+    footerRecord: row.footer_record || undefined,
+    showWorkbenchHeader: !!row.show_workbench_header,
+    updatedAt: row.updated_at,
+  }
+}
+
+export function mapSecuritySettings(row) {
+  return {
+    apiRateLimitPerMinute: Number(row.api_rate_limit_per_minute),
+    passwordMinLength: Number(row.password_min_length),
+    passwordRequireUppercase: !!row.password_require_uppercase,
+    passwordRequireLowercase: !!row.password_require_lowercase,
+    passwordRequireSpecial: !!row.password_require_special,
+    passwordRequireNumber: !!row.password_require_number,
+    updatedAt: row.updated_at,
   }
 }

@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
-import logo from '../images/logo.png'
+import { useSystemSettings } from '../system-settings'
 
 function ssoRedirectPath(redirectUrl?: string) {
   if (!redirectUrl) return '/'
@@ -17,6 +17,7 @@ function ssoRedirectPath(redirectUrl?: string) {
 export default function Login() {
   const navigate = useNavigate(); const location = useLocation()
   const { user, refresh, logout } = useAuth()
+  const { settings, defaultLogo } = useSystemSettings()
   const [form] = Form.useForm<{ code: string; password: string }>()
   const handledSsoAttempt = useRef<string | null>(null)
   useEffect(() => {
@@ -43,12 +44,12 @@ export default function Login() {
     try { await api.login(values.code, values.password); await refresh(); const from = (location.state as { from?: string } | null)?.from || '/'; navigate(from, { replace: true }) }
     catch (error) { message.error((error as Error).message) }
   }
-  return <main className="login-page"><Card className="login-card" bordered={false}>
-    <img className="brand-mark" src={logo} alt="AI财务助手" /><Typography.Title level={2}>AI财务助手</Typography.Title><Typography.Text type="secondary">后台配置系统</Typography.Text>
+  return <main className="login-page"><div className="login-panel"><Card className="login-card" bordered={false}>
+    <img className="brand-mark" src={settings.systemLogo || defaultLogo} alt={settings.systemTitle} /><Typography.Title level={2}>{settings.systemTitle}</Typography.Title><Typography.Text type="secondary">{settings.loginText}</Typography.Text>
     <Form form={form} layout="vertical" onFinish={submit} className="login-form">
       <Form.Item name="code" rules={[{ required: true, message: '请输入账号' }]}><Input size="large" prefix={<UserOutlined />} placeholder="账号" /></Form.Item>
       <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}><Input.Password size="large" prefix={<LockOutlined />} placeholder="密码" /></Form.Item>
       <Button type="primary" htmlType="submit" size="large" block>登录</Button>
     </Form>
-  </Card></main>
+  </Card></div>{settings.footerRecord && <footer className="system-footer">{settings.footerRecord}</footer>}</main>
 }
