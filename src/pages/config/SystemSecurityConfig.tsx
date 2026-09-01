@@ -52,12 +52,12 @@ export default function SystemSecurityConfig() {
     <div className="page-title"><div><Typography.Title level={3}>基础配置</Typography.Title><Typography.Text type="secondary">维护登录界面、浏览器标识和系统页脚信息</Typography.Text></div><Button type="primary" icon={<SaveOutlined />} onClick={() => form.submit()}>保存</Button></div>
     <Form form={form} layout="vertical" onFinish={(values) => void save(values)} className="system-settings-form">
       <Typography.Title level={5}>品牌标识</Typography.Title>
-      <Form.Item name="systemTitle" label="系统标题" rules={[{ required: true, message: '请输入系统标题' }]}><Input maxLength={120} placeholder="AI财务助手" /></Form.Item>
-      <Form.Item name="browserTitle" label="浏览器 Title" rules={[{ required: true, message: '请输入浏览器 Title' }]}><Input maxLength={120} placeholder="AI财务助手" /></Form.Item>
+      <Form.Item name="systemTitle" label="系统标题" rules={[{ required: true, message: '请输入系统标题' }]}><Input maxLength={120} placeholder="集成平台" /></Form.Item>
+      <Form.Item name="browserTitle" label="浏览器 Title" rules={[{ required: true, message: '请输入浏览器 Title' }]}><Input maxLength={120} placeholder="集成平台" /></Form.Item>
       {imageControl('systemLogo', '系统 Logo')}
       {imageControl('titleLogo', 'Title Logo')}
       <Typography.Title level={5}>登录与页脚</Typography.Title>
-      <Form.Item name="loginText" label="登录界面文字"><Input maxLength={255} placeholder="后台配置系统" /></Form.Item>
+      <Form.Item name="loginText" label="登录界面文字"><Input maxLength={255} placeholder="控制台" /></Form.Item>
       <Form.Item name="footerRecord" label="页脚备案信息"><Input maxLength={255} placeholder="例如：京ICP备XXXXXXXX号" /></Form.Item>
       <Typography.Title level={5}>控制台管理</Typography.Title>
       <Form.Item name="showWorkbenchHeader" label="工作台 Header" valuePropName="checked" extra="开启后，工作台显示控制台、当前用户和退出入口"><Checkbox>显示 Header</Checkbox></Form.Item>
