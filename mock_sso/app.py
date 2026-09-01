@@ -1,4 +1,4 @@
-"""A small local OA SSO simulator for the AI Finance Assistant.
+"""A small local OA SSO simulator for Middle Platform.
 
 It issues a one-time ticket and redirects the browser to the portal login page.
 The portal calls POST /api/tickets/verify to exchange that ticket for a user.

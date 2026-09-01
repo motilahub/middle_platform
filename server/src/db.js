@@ -54,11 +54,11 @@ export async function initDatabase() {
     );
     CREATE TABLE IF NOT EXISTS system_settings (
       id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-      system_title VARCHAR(120) NOT NULL DEFAULT 'AI财务助手',
-      browser_title VARCHAR(120) NOT NULL DEFAULT 'AI财务助手',
+      system_title VARCHAR(120) NOT NULL DEFAULT '集成平台',
+      browser_title VARCHAR(120) NOT NULL DEFAULT '集成平台',
       system_logo TEXT,
       title_logo TEXT,
-      login_text VARCHAR(255) NOT NULL DEFAULT '后台配置系统',
+      login_text VARCHAR(255) NOT NULL DEFAULT '控制台',
       footer_record VARCHAR(255),
       show_workbench_header BOOLEAN NOT NULL DEFAULT TRUE,
       api_rate_limit_per_minute INTEGER NOT NULL DEFAULT 30,
@@ -73,6 +73,9 @@ export async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_dashboard_apps_priority ON dashboard_apps(priority, id);
   `)
   await pool.query(`
+    ALTER TABLE system_settings ALTER COLUMN system_title SET DEFAULT '集成平台';
+    ALTER TABLE system_settings ALTER COLUMN browser_title SET DEFAULT '集成平台';
+    ALTER TABLE system_settings ALTER COLUMN login_text SET DEFAULT '控制台';
     ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS api_rate_limit_per_minute INTEGER NOT NULL DEFAULT 30;
     ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS show_workbench_header BOOLEAN NOT NULL DEFAULT TRUE;
     ALTER TABLE system_settings ALTER COLUMN show_workbench_header SET DEFAULT TRUE;
