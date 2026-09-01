@@ -7,7 +7,8 @@ import connectPgSimple from 'connect-pg-simple'
 import bcrypt from 'bcryptjs'
 import sharp from 'sharp'
 import { initDatabase, mapApp, mapSecuritySettings, mapSystemSettings, mapUser, pool } from './db.js'
-import { createSsoModule, registerSsoPublicRoutes, registerSsoRoutes } from './platform/sso/index.js'
+import { createSsoModule } from './platform/sso/index.js'
+import { registerBusinessModules, registerProtectedPlatformModules, registerPublicPlatformModules } from './bootstrap/module-registry.js'
 
 const app = express()
 const port = Number(process.env.PORT || 3000)
@@ -73,10 +74,11 @@ app.get('/api/auth/csrf', (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   res.json({ token: issueCsrfToken(req) })
 })
-registerSsoPublicRoutes(app, ssoModule.controller, { asyncRoute, rateLimiter: apiRateLimiter })
+registerPublicPlatformModules(app, { asyncRoute, rateLimiter: apiRateLimiter, ssoModule })
 app.use('/api', requireCsrf)
 app.use('/api', apiRateLimiter)
-registerSsoRoutes(app, ssoModule.controller, { asyncRoute, requireAuth, requireAdmin })
+registerProtectedPlatformModules(app, { asyncRoute, requireAuth, requireAdmin, ssoModule })
+registerBusinessModules(app, { asyncRoute, requireAuth, requireAdmin, pool })
 
 app.post('/api/auth/login', asyncRoute(async (req, res) => {
   const result = await pool.query('SELECT * FROM users WHERE code=$1', [String(req.body.code || '').trim()])
