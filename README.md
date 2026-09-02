@@ -5,7 +5,7 @@
 ## 核心能力
 
 - **统一工作台**：以应用磁贴展示业务系统，支持应用排序、启停、图标和用户可见范围。
-- **用户与权限**：支持超级管理员、管理员和普通用户；普通用户不能进入系统配置。
+- **用户与权限**：采用 Odoo 风格的用户组与权限码模型，支持按资源的查看、创建、修改、删除权限；兼容超级管理员、管理员和普通用户角色，并在前端控制菜单、路由和操作入口。
 - **系统配置**：维护系统名称、浏览器 Title、Logo、登录页文字、页脚备案和工作台 Header。首次初始化默认显示 Header。
 - **安全策略**：支持 API 访问频率限制、密码长度和字符组成策略；生产环境强制使用安全 Session 密钥。
 - **单点登录**：已实现 Ticket 外部访入和内部访出，支持一次性凭证、用户权限校验、目标系统客户端密钥及工作台应用关联，并预留 OIDC、CAS、SAML 字段。
@@ -33,11 +33,13 @@
 
 ![统一工作台：应用磁贴、控制台入口、当前用户与退出操作](docs/images/workbench.png)
 
-- **管理控制台**：由 Header 的“控制台”进入。左侧集中工作台、工作台配置、用户管理和系统配置；工作台配置以表格维护应用图标、编码、名称、优先级和显示状态，并支持创建、批量删除、编辑和单项删除。
+- **管理控制台**：由 Header 的“控制台”进入。左侧集中工作台、工作台配置、用户管理和系统配置；工作台配置以表格维护应用图标、编码、名称、优先级和显示状态，并支持创建、批量删除、编辑和单项删除。用户管理列表展示账号、名称、权限类别和权限组；账号支持单击复制，用户 UUID 仅在编辑抽屉中以只读方式展示并支持单击复制。
 
 ![工作台配置：应用入口管理、显示状态与编辑操作](docs/images/dashboard-config.png)
 
-普通用户仅使用工作台应用入口；系统配置和控制台管理功能由管理员角色控制。页面中的 Logo、系统名称、Header 显示状态和备案信息均可在系统配置中维护。
+普通用户仅使用工作台应用入口；控制台菜单、路由和 CRUD 操作由用户权限组控制。工作台应用仍可按用户单独分配访问范围。页面中的 Logo、系统名称、Header 显示状态和备案信息均可在系统配置中维护。
+
+权限模型采用四层结构：用户加入权限组，权限组授予资源级 `read/write/create/unlink` 权限，业务模块声明自己的权限码，记录范围规则作为后续扩展接入。后端接口是最终安全边界，前端权限仅用于菜单、路由和按钮展示。
 
 ## 快速开始
 
@@ -68,6 +70,8 @@ docker compose logs -f web
 ```bash
 docker compose down
 ```
+
+数据库保存在 Docker 命名卷 `middle_platform_postgres_data` 中，容器重建不会删除数据。只有明确需要清空全部业务数据时才执行 `docker compose down -v`；API 路由、依赖或代码加载错误应修复代码并重建 API 镜像，不应通过删除数据库卷处理。
 
 ### 离线一键部署
 
@@ -172,6 +176,7 @@ server/src/platform/identity/ 用户认证与用户管理
 server/src/platform/workbench/ 工作台应用与图标管理
 server/src/platform/settings/ 系统与安全配置
 server/src/platform/health/   健康检查
+server/src/platform/identity/permissions.js 用户组、权限码与权限解析
 server/src/middleware/        认证、CSRF、限流和 HTTP 公共中间件
 server/src/shared/           无业务归属的映射和公共工具
 server/src/db/migrations/    顺序执行的数据库迁移
@@ -191,6 +196,8 @@ server/Dockerfile            API 生产镜像
 新客户端通过公共请求层访问 `/api/v1`；服务端暂时保留 `/api` 兼容路径。平台基础表和增量变更由 `server/src/db/migrations/` 顺序迁移，禁止在业务入口中新增建表 DDL。
 
 业务模块通过 `ENABLED_MODULES` 按需加载，例如 `ENABLED_MODULES=education.sunny-class,finance`。模块放在 `server/src/modules/<module-key>/`，由 `server/src/bootstrap/module-loader.js` 发现、校验依赖、执行迁移并注册路由；未配置的业务模块不会加载。
+
+业务模块可以在 manifest 中声明 `permissions`，模块加载阶段会注册权限码。例如 `education.student.read`、`education.student.write`；路由通过 `dependencies.requirePermission(code)` 校验，后续记录规则应由模块提供服务端 Domain 构造器。
 
 ## 常用命令
 
