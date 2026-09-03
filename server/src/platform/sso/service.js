@@ -39,7 +39,7 @@ function updateValues(body, direction, id, secretHash) {
   return [body.name, body.protocol, body.systemUrl, body.verifyUrl || null, body.authorizeUrl || null, body.callbackUrl || null, body.issuer || null, body.clientId || null, secretHash, body.userIdentifier || 'userId', Number(body.ticketTtlSeconds) || 30, body.enabled !== false, body.remark || null, Number(body.priority) || 1, id, direction]
 }
 
-export function createSsoService(repository, mapUser) {
+export function createSsoService(repository, mapUser, permissionService) {
   return {
     async exchangeInbound(code, ticket) {
       if (!ticket) throw failure('缺少 ticket')
@@ -58,7 +58,8 @@ export function createSsoService(repository, mapUser) {
       if (!userId) throw failure(`单点登录校验结果未包含 ${config.user_identifier} 用户标识`, 401)
       const row = await repository.findUserByCode(String(userId))
       if (!row) throw failure('用户尚未配置门户权限', 403)
-      return { user: mapUser(row), redirectUrl: config.callback_url || '/' }
+      const user = mapUser(row)
+      return { user: permissionService ? await permissionService.enrich(user) : user, redirectUrl: config.callback_url || '/' }
     },
     async verifyOutbound(code, ticket, clientSecret) {
       if (!ticket || !clientSecret) throw failure('Ticket 或目标系统凭证无效', 401)

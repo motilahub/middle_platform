@@ -3,14 +3,21 @@ const appSelect = `SELECT a.*, COALESCE(array_agg(au.user_id) FILTER (WHERE au.u
 
 export function createWorkbenchRepository(pool) {
   return {
-    listVisible(userId) { return pool.query(`${appSelect} HAVING a.enabled=TRUE AND (COUNT(au.user_id)=0 OR $1=ANY(array_agg(au.user_id))) ORDER BY a.priority,a.id`, [userId]).then((result) => result.rows) },
+    listVisible(userId) {
+      return pool.query(`${appSelect}
+        HAVING a.enabled=TRUE AND (
+          a.visibility='public'
+          OR ($1::bigint IS NOT NULL AND $1=ANY(array_agg(au.user_id)))
+        )
+        ORDER BY a.priority,a.id`, [userId || null]).then((result) => result.rows)
+    },
     listAll() { return pool.query(`${appSelect} ORDER BY a.priority,a.id`).then((result) => result.rows) },
     find(id) { return pool.query('SELECT * FROM dashboard_apps WHERE id=$1', [id]).then((result) => result.rows[0]) },
     async create(values, userIds) {
       const client = await pool.connect()
       try {
         await client.query('BEGIN')
-        const result = await client.query('INSERT INTO dashboard_apps(code,name,priority,url,enabled,image_original,image_thumbnail,image_filename,outbound_sso_config_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id', values)
+        const result = await client.query('INSERT INTO dashboard_apps(code,name,priority,url,enabled,image_original,image_thumbnail,image_filename,outbound_sso_config_id,visibility) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id', values)
         await this.saveUsers(client, result.rows[0].id, userIds)
         await client.query('COMMIT')
         return Number(result.rows[0].id)
@@ -20,7 +27,7 @@ export function createWorkbenchRepository(pool) {
       const client = await pool.connect()
       try {
         await client.query('BEGIN')
-        await client.query('UPDATE dashboard_apps SET name=$1,priority=$2,url=$3,enabled=$4,image_original=$5,image_thumbnail=$6,image_filename=$7,outbound_sso_config_id=$8,updated_at=NOW() WHERE id=$9', [...values, id])
+        await client.query('UPDATE dashboard_apps SET name=$1,priority=$2,url=$3,enabled=$4,image_original=$5,image_thumbnail=$6,image_filename=$7,outbound_sso_config_id=$8,visibility=$9,updated_at=NOW() WHERE id=$10', [...values, id])
         await this.saveUsers(client, id, userIds)
         await client.query('COMMIT')
       } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
@@ -39,4 +46,3 @@ export function createWorkbenchRepository(pool) {
     deleteOne(id) { return pool.query('DELETE FROM dashboard_apps WHERE id=$1 RETURNING *', [id]).then((result) => result.rows[0]) },
   }
 }
-

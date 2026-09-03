@@ -13,7 +13,8 @@ function validateModule(module, source) {
   if (!manifest?.key || typeof module?.register !== 'function') throw new Error(`模块 ${source} 必须提供 manifest.key 和 register()`)
   if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/i.test(manifest.key)) throw new Error(`模块 ${source} 的 key 无效`)
   if (manifest.dependencies && !Array.isArray(manifest.dependencies)) throw new Error(`模块 ${manifest.key} 的 dependencies 必须是数组`)
-  return { ...module, manifest: { version: '0.0.0', dependencies: [], enabledByDefault: false, ...manifest }, key: manifest.key }
+  if (manifest.permissions && !Array.isArray(manifest.permissions)) throw new Error(`模块 ${manifest.key} 的 permissions 必须是数组`)
+  return { ...module, manifest: { version: '0.0.0', dependencies: [], permissions: [], enabledByDefault: false, ...manifest }, key: manifest.key }
 }
 
 export function orderModules(modules, availableKeys = new Set()) {
@@ -64,7 +65,10 @@ export async function loadBusinessModules({ directory, enabled = [], dependencie
     return module
   })
   const ordered = orderModules(modules, new Set(platformModuleKeys))
-  for (const module of ordered) if (typeof module.migrate === 'function') await module.migrate(dependencies)
+  for (const module of ordered) {
+    if (dependencies.permissionService && module.manifest.permissions) await dependencies.permissionService.registerDefinitions(module.manifest.permissions)
+    if (typeof module.migrate === 'function') await module.migrate(dependencies)
+  }
   return ordered
 }
 

@@ -14,9 +14,13 @@ export function createIdentityController(service, sessionSecurity) {
     },
     me(req, res) { res.json(req.session.user) },
     async list(req, res) { res.json(await service.list()) },
+    async listGroups(req, res) { res.json(await service.listGroups()) },
+    async listPermissionDefinitions(req, res) { res.json(await service.listPermissionDefinitions()) },
+    async createGroup(req, res) { res.status(201).json({ id: await service.createGroup(req.body) }) },
+    async updateGroup(req, res) { await service.updateGroup(req.params.id, req.body); res.status(204).end() },
+    async deleteGroup(req, res) { await service.deleteGroup(req.params.id); res.status(204).end() },
     async create(req, res) { res.status(201).json(await service.create(req.body)) },
     async update(req, res) { await service.update(req.params.id, req.body); res.status(204).end() },
     async remove(req, res) { await service.remove(req.params.id); res.status(204).end() },
   }
 }
-

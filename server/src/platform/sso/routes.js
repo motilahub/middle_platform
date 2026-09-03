@@ -5,13 +5,13 @@ export function registerSsoPublicRoutes(app, controller, { asyncRoute, rateLimit
   app.post('/api/auth/sso/outbound/:code/verify', rateLimiter, asyncRoute(controller.verifyOutbound))
 }
 
-export function registerSsoRoutes(app, controller, { asyncRoute, requireAuth, requireAdmin }) {
+export function registerSsoRoutes(app, controller, { asyncRoute, requireAuth, requirePermission }) {
   app.post('/api/auth/sso/:code/exchange', asyncRoute(controller.exchangeInbound))
   app.post('/api/me/apps/:id/sso-ticket', requireAuth, asyncRoute(controller.launchOutbound))
-  app.get('/api/admin/sso/:direction', requireAdmin, requireDirection, asyncRoute(controller.list))
-  app.post('/api/admin/sso/:direction', requireAdmin, requireDirection, asyncRoute(controller.create))
-  app.put('/api/admin/sso/:direction/:id', requireAdmin, requireDirection, asyncRoute(controller.update))
-  app.patch('/api/admin/sso/:direction/:id/enabled', requireAdmin, requireDirection, asyncRoute(controller.setEnabled))
-  app.delete('/api/admin/sso/:direction', requireAdmin, requireDirection, asyncRoute(controller.deleteMany))
-  app.delete('/api/admin/sso/:direction/:id', requireAdmin, requireDirection, asyncRoute(controller.deleteOne))
+  app.get('/api/admin/sso/:direction', requirePermission('platform.sso.read'), requireDirection, asyncRoute(controller.list))
+  app.post('/api/admin/sso/:direction', requirePermission('platform.sso.create'), requireDirection, asyncRoute(controller.create))
+  app.put('/api/admin/sso/:direction/:id', requirePermission('platform.sso.write'), requireDirection, asyncRoute(controller.update))
+  app.patch('/api/admin/sso/:direction/:id/enabled', requirePermission('platform.sso.write'), requireDirection, asyncRoute(controller.setEnabled))
+  app.delete('/api/admin/sso/:direction', requirePermission('platform.sso.unlink'), requireDirection, asyncRoute(controller.deleteMany))
+  app.delete('/api/admin/sso/:direction/:id', requirePermission('platform.sso.unlink'), requireDirection, asyncRoute(controller.deleteOne))
 }

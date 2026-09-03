@@ -1,5 +1,8 @@
 export function mapUser(row) {
-  return { id: Number(row.id), uuid: row.uuid, code: row.code, name: row.name, role: row.role }
+  return {
+    id: Number(row.id), uuid: row.uuid, code: row.code, name: row.name, role: row.role,
+    groups: row.groups || [], permissions: row.permissions || [],
+  }
 }
 
 export function mapApp(row) {
@@ -8,6 +11,7 @@ export function mapApp(row) {
     url: row.url, enabled: row.enabled, img: row.image_original || undefined,
     imgThumbnail: row.image_thumbnail || undefined, imgFileName: row.image_filename || undefined,
     outboundSsoConfigId: row.outbound_sso_config_id ? Number(row.outbound_sso_config_id) : undefined,
+    visibility: row.visibility || 'public',
     userIds: (row.user_ids || []).map(Number),
   }
 }
@@ -36,4 +40,3 @@ export function mapSecuritySettings(row) {
     updatedAt: row.updated_at,
   }
 }
-

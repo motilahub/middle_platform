@@ -8,10 +8,11 @@ import { initDatabase, pool } from './db.js'
 import { registerBusinessModules, registerProtectedPlatformModules, registerPublicPlatformModules } from './bootstrap/module-registry.js'
 import { loadBusinessModules, startModules, stopModules } from './bootstrap/module-loader.js'
 import { asyncRoute, normalizeVersionedApi } from './middleware/http.js'
-import { requireAdmin, requireAuth } from './middleware/auth.js'
+import { createAnyPermissionMiddleware, createPermissionMiddleware, requireAdmin, requireAuth } from './middleware/auth.js'
 import { createSecurityPolicy, createSessionSecurity } from './middleware/security.js'
 import { createHealthModule } from './platform/health/index.js'
 import { createIdentityModule } from './platform/identity/index.js'
+import { createPermissionService } from './platform/identity/permissions.js'
 import { createSettingsModule } from './platform/settings/index.js'
 import { createSsoModule } from './platform/sso/index.js'
 import { createWorkbenchModule } from './platform/workbench/index.js'
@@ -27,6 +28,9 @@ const sessionSecret = configuredSessionSecret || 'development-only-session-secre
 const sessionCookie = { httpOnly: true, sameSite: 'lax', secure: process.env.COOKIE_SECURE === 'true', maxAge: 8 * 60 * 60 * 1000 }
 const securityPolicy = createSecurityPolicy()
 const sessionSecurity = createSessionSecurity()
+const permissionService = createPermissionService(pool)
+const requirePermission = createPermissionMiddleware(permissionService)
+const requireAnyPermission = createAnyPermissionMiddleware(permissionService)
 
 await Promise.all(['original', 'thumbnail', 'system'].map((directory) => fs.mkdir(path.join(uploadRoot, directory), { recursive: true })))
 await initDatabase()
@@ -54,15 +58,18 @@ app.use((_req, res, next) => {
 app.use('/uploads', express.static(uploadRoot, { fallthrough: false, maxAge: '7d' }))
 app.use(normalizeVersionedApi)
 
-const ssoModule = createSsoModule({ pool, mapUser, establishSession: sessionSecurity.establishSession })
+const ssoModule = createSsoModule({ pool, mapUser, establishSession: sessionSecurity.establishSession, permissionService })
 const healthModule = createHealthModule(pool)
-const identityModule = createIdentityModule({ pool, mapUser, securityPolicy, sessionSecurity })
+const identityModule = createIdentityModule({ pool, mapUser, securityPolicy, sessionSecurity, permissionService })
 const settingsModule = createSettingsModule({ pool, uploadRoot, mapSystemSettings, mapSecuritySettings, securityPolicy })
 const workbenchModule = createWorkbenchModule({ pool, uploadRoot, mapApp, ssoService: ssoModule.service })
 const dependencies = {
   asyncRoute,
   requireAuth,
   requireAdmin,
+  requirePermission,
+  requireAnyPermission,
+  permissionService,
   rateLimiter: securityPolicy.rateLimiter,
   ssoModule,
   healthModule,

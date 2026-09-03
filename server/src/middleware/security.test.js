@@ -2,9 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSecurityPolicy } from './security.js'
 
-test('security policy validates configured password rules', () => {
+test('security policy uses permissive initialization defaults and validates configured password rules', () => {
   const policy = createSecurityPolicy()
-  assert.throws(() => policy.validatePassword('weakpass'), /大写字母/)
+  assert.equal(policy.settings.apiRateLimitPerMinute, 10000)
+  assert.equal(policy.settings.passwordMinLength, 6)
+  assert.equal(policy.validatePassword('weakpass'), 'weakpass')
+  assert.throws(() => policy.validatePassword('short'), /密码长度/)
   policy.settings = {
     apiRateLimitPerMinute: 10,
     passwordMinLength: 6,

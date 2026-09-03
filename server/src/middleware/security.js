@@ -1,12 +1,12 @@
 import crypto from 'node:crypto'
 
 const defaults = {
-  apiRateLimitPerMinute: 30,
-  passwordMinLength: 8,
-  passwordRequireUppercase: true,
-  passwordRequireLowercase: true,
-  passwordRequireSpecial: true,
-  passwordRequireNumber: true,
+  apiRateLimitPerMinute: 10000,
+  passwordMinLength: 6,
+  passwordRequireUppercase: false,
+  passwordRequireLowercase: false,
+  passwordRequireSpecial: false,
+  passwordRequireNumber: false,
 }
 
 export function createSecurityPolicy() {
@@ -72,4 +72,3 @@ export function createSessionSecurity() {
     },
   }
 }
-

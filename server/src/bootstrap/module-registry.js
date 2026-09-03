@@ -16,7 +16,7 @@ export function registerPublicPlatformModules(app, dependencies) {
 
 export function registerProtectedPlatformModules(app, dependencies) {
   registerApiModules(app, dependencies, [
-    { key: 'platform.sso', register: () => registerSsoRoutes(app, dependencies.ssoModule.controller, { asyncRoute: dependencies.asyncRoute, requireAuth: dependencies.requireAuth, requireAdmin: dependencies.requireAdmin }) },
+    { key: 'platform.sso', register: () => registerSsoRoutes(app, dependencies.ssoModule.controller, { asyncRoute: dependencies.asyncRoute, requireAuth: dependencies.requireAuth, requirePermission: dependencies.requirePermission }) },
     { key: 'platform.identity', register: () => dependencies.identityModule.registerRoutes(app, dependencies) },
     { key: 'platform.workbench', register: () => dependencies.workbenchModule.registerRoutes(app, dependencies) },
     { key: 'platform.settings', register: () => dependencies.settingsModule.registerRoutes(app, dependencies) },

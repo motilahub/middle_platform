@@ -1,4 +1,4 @@
-import { DashboardApp, SecuritySettings, SystemSettings, User } from './types'
+import { DashboardApp, PermissionDefinition, PermissionGroup, SecuritySettings, SystemSettings, User } from './types'
 import { clearCsrfToken, request } from './shared/api-client'
 
 export const api = {
@@ -10,7 +10,7 @@ export const api = {
   updateSystemSettings: (settings: SystemSettings) => request<SystemSettings>('/api/admin/system-settings', { method: 'PUT', body: JSON.stringify(settings) }),
   adminSecuritySettings: () => request<SecuritySettings>('/api/admin/security-settings'),
   updateSecuritySettings: (settings: SecuritySettings) => request<SecuritySettings>('/api/admin/security-settings', { method: 'PUT', body: JSON.stringify(settings) }),
-  visibleApps: () => request<DashboardApp[]>('/api/me/apps'),
+  visibleApps: () => request<DashboardApp[]>('/api/workbench/apps'),
   adminApps: () => request<DashboardApp[]>('/api/admin/apps'),
   createApp: (app: Omit<DashboardApp, 'id'>) => request<{ id: number }>('/api/admin/apps', { method: 'POST', body: JSON.stringify(app) }),
   updateApp: (id: number, app: DashboardApp) => request<void>(`/api/admin/apps/${id}`, { method: 'PUT', body: JSON.stringify(app) }),
@@ -19,7 +19,12 @@ export const api = {
   deleteApp: (id: number) => request<void>(`/api/admin/apps/${id}`, { method: 'DELETE' }),
   deleteApps: (ids: number[]) => request<void>('/api/admin/apps', { method: 'DELETE', body: JSON.stringify({ ids }) }),
   users: () => request<User[]>('/api/admin/users'),
-  createUser: (user: Partial<User> & { password: string }) => request<User>('/api/admin/users', { method: 'POST', body: JSON.stringify(user) }),
+  permissionGroups: () => request<PermissionGroup[]>('/api/admin/permission-groups'),
+  permissionDefinitions: () => request<PermissionDefinition[]>('/api/admin/permissions'),
+  createPermissionGroup: (group: Omit<PermissionGroup, 'id'>) => request<{ id: number }>('/api/admin/permission-groups', { method: 'POST', body: JSON.stringify(group) }),
+  updatePermissionGroup: (id: number, group: Omit<PermissionGroup, 'id'>) => request<void>(`/api/admin/permission-groups/${id}`, { method: 'PUT', body: JSON.stringify(group) }),
+  deletePermissionGroup: (id: number) => request<void>(`/api/admin/permission-groups/${id}`, { method: 'DELETE' }),
+  createUser: (user: Partial<User> & { password: string; groupIds?: number[] }) => request<User>('/api/admin/users', { method: 'POST', body: JSON.stringify(user) }),
   updateUser: (id: number, user: Partial<User>) => request<void>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(user) }),
   deleteUser: (id: number) => request<void>(`/api/admin/users/${id}`, { method: 'DELETE' }),
 }

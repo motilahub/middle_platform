@@ -1,6 +1,6 @@
 export function createWorkbenchController(service) {
   return {
-    async visible(req, res) { res.json(await service.visibleApps(req.session.user.id)) },
+    async visible(req, res) { res.json(await service.visibleApps(req.session.user?.id)) },
     async list(req, res) { res.json(await service.adminApps()) },
     async create(req, res) { res.status(201).json({ id: await service.create(req.body) }) },
     async update(req, res) { await service.update(req.params.id, req.body); res.status(204).end() },
@@ -10,4 +10,3 @@ export function createWorkbenchController(service) {
     async deleteOne(req, res) { await service.deleteOne(req.params.id); res.status(204).end() },
   }
 }
-

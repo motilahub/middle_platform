@@ -5,7 +5,7 @@ export function createIdentityRepository(pool) {
     create(values) { return pool.query('INSERT INTO users(uuid,code,name,password_hash,role) VALUES($1,$2,$3,$4,$5) RETURNING *', values).then((result) => result.rows[0]) },
     update(id, values) { return pool.query('UPDATE users SET name=$1,role=$2,password_hash=COALESCE($3,password_hash),updated_at=NOW() WHERE id=$4', [...values, id]) },
     findCode(id) { return pool.query('SELECT code FROM users WHERE id=$1', [id]).then((result) => result.rows[0]) },
+    defaultGroupIds(role) { return pool.query('SELECT id FROM permission_groups WHERE code=$1', [role === 'user' ? 'platform_user' : 'platform_admin']).then((result) => result.rows.map((row) => Number(row.id))) },
     remove(id) { return pool.query('DELETE FROM users WHERE id=$1', [id]) },
   }
 }
-
