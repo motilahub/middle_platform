@@ -10,6 +10,7 @@
 - **安全策略**：支持 API 访问频率限制、密码长度和字符组成策略；初始化默认每分钟 10000 次、最短密码 6 位且不强制字符组成；生产环境强制使用安全 Session 密钥。
 - **单点登录**：已实现 Ticket 外部访入和内部访出，支持一次性凭证、用户权限校验、目标系统客户端密钥及工作台应用关联，并预留 OIDC、CAS、SAML 字段。
 - **安全会话**：使用 PostgreSQL 服务端 Session、HttpOnly Cookie、CSRF Token 和基础安全响应头。
+- **模型供应商**：支持维护 OpenAI、DeepSeek、通义千问、智谱 AI、硅基流动、Moonshot AI 及自定义 OpenAI 兼容服务；API Key 加密保存，可测试连接并同步可用模型。
 - **离线部署**：可将前端、API、PostgreSQL 镜像和部署脚本打包为一个无需源码的部署归档。
 
 ## 技术栈
@@ -21,6 +22,8 @@
 | 数据库 | PostgreSQL 15 |
 | 图片处理 | Sharp |
 | 运行方式 | Docker Compose、Nginx |
+
+前端页面和业务模块位于 `src/`，后端 API 与业务模块位于 `server/src/`；React Router 负责前端路由组合，Express 模块注册器负责后端 API 装配。完整的前后端技术栈、模块边界和依赖规则请参阅 [`docs/系统架构.md`](docs/系统架构.md)。
 
 ## 界面概览
 
@@ -103,6 +106,7 @@ cd middle_platform-<version>
 - 初始密码：`admin`
 - 首次登录后请立即修改密码。
 - 生产环境必须设置至少 32 位的 `SESSION_SECRET` 和强数据库密码。
+- 可选设置 `MODEL_PROVIDER_ENCRYPTION_KEY` 作为模型供应商 API Key 的独立加密密钥；一旦已保存供应商配置，请保持该值不变。未设置时系统使用 `SESSION_SECRET`。
 - 接入 HTTPS 后将 `COOKIE_SECURE=true`，并由入口网关负责 HTTP 到 HTTPS 跳转。
 
 ## 单点登录
@@ -175,6 +179,7 @@ server/src/platform/sso/     SSO 后端平台模块
 server/src/platform/identity/ 用户认证与用户管理
 server/src/platform/workbench/ 工作台应用与图标管理
 server/src/platform/settings/ 系统与安全配置
+server/src/platform/model-providers/ 模型供应商配置与受控模型发现
 server/src/platform/health/   健康检查
 server/src/platform/identity/permissions.js 用户组、权限码与权限解析
 server/src/middleware/        认证、CSRF、限流和 HTTP 公共中间件

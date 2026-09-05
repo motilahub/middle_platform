@@ -47,6 +47,7 @@ if [ ! -f "$ENV_FILE" ]; then
     "POSTGRES_USER=oa_workbench" \
     "POSTGRES_PASSWORD=$db_password" \
     "SESSION_SECRET=$session_secret" \
+    "MODEL_PROVIDER_ENCRYPTION_KEY=$session_secret" \
     "COOKIE_SECURE=false" > "$ENV_FILE"
   chmod 600 "$ENV_FILE"
   echo "Created $ENV_FILE with generated secrets."

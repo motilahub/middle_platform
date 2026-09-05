@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "scripts": { "start": "node src/index.js", "test": "node --test src/platform/sso/ticket.test.js src/platform/identity/permissions.test.js src/bootstrap/module-contract.test.js src/bootstrap/module-loader.test.js src/middleware/security.test.js" },
+  "scripts": { "start": "node src/index.js", "test": "node --test src/platform/sso/ticket.test.js src/platform/identity/permissions.test.js src/bootstrap/module-contract.test.js src/bootstrap/module-loader.test.js src/middleware/security.test.js src/platform/model-providers/service.test.js src/shared/secret-crypto.test.js" },
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "connect-pg-simple": "^10.0.0",

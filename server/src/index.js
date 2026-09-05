@@ -13,6 +13,7 @@ import { createSecurityPolicy, createSessionSecurity } from './middleware/securi
 import { createHealthModule } from './platform/health/index.js'
 import { createIdentityModule } from './platform/identity/index.js'
 import { createPermissionService } from './platform/identity/permissions.js'
+import { createModelProviderModule } from './platform/model-providers/index.js'
 import { createSettingsModule } from './platform/settings/index.js'
 import { createSsoModule } from './platform/sso/index.js'
 import { createWorkbenchModule } from './platform/workbench/index.js'
@@ -63,6 +64,7 @@ const healthModule = createHealthModule(pool)
 const identityModule = createIdentityModule({ pool, mapUser, securityPolicy, sessionSecurity, permissionService })
 const settingsModule = createSettingsModule({ pool, uploadRoot, mapSystemSettings, mapSecuritySettings, securityPolicy })
 const workbenchModule = createWorkbenchModule({ pool, uploadRoot, mapApp, ssoService: ssoModule.service })
+const modelProviderModule = createModelProviderModule({ pool, encryptionKey: process.env.MODEL_PROVIDER_ENCRYPTION_KEY || sessionSecret })
 const dependencies = {
   asyncRoute,
   requireAuth,
@@ -76,6 +78,7 @@ const dependencies = {
   identityModule,
   settingsModule,
   workbenchModule,
+  modelProviderModule,
   pool,
 }
 

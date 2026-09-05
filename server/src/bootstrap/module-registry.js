@@ -20,6 +20,7 @@ export function registerProtectedPlatformModules(app, dependencies) {
     { key: 'platform.identity', register: () => dependencies.identityModule.registerRoutes(app, dependencies) },
     { key: 'platform.workbench', register: () => dependencies.workbenchModule.registerRoutes(app, dependencies) },
     { key: 'platform.settings', register: () => dependencies.settingsModule.registerRoutes(app, dependencies) },
+    { key: 'platform.model-providers', register: () => dependencies.modelProviderModule.registerRoutes(app, dependencies) },
   ])
 }
 

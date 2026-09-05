@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const platformKeys = new Set(['platform.identity', 'platform.workbench', 'platform.settings', 'platform.sso', 'platform.health'])
+const platformKeys = new Set(['platform.identity', 'platform.workbench', 'platform.settings', 'platform.sso', 'platform.health', 'platform.model-providers'])
 
 export function parseEnabledModules(value = '') {
   return [...new Set(String(value).split(',').map((item) => item.trim()).filter(Boolean))]

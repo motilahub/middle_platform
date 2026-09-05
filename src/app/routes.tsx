@@ -10,6 +10,7 @@ import SsoConfig from '../pages/config/SsoConfig'
 import BasicConfig from '../pages/config/SystemSecurityConfig'
 import SecurityConfig from '../pages/config/SecurityConfig'
 import PermissionGroupConfig from '../pages/config/PermissionGroupConfig'
+import ModelProviderConfig from '../pages/config/ModelProviderConfig'
 import { getBusinessRouteElements } from '../modules/registry'
 
 function Guard({ children, adminOnly = false, requiredPermission, requiredAnyPermissions }: { children: JSX.Element; adminOnly?: boolean; requiredPermission?: string; requiredAnyPermissions?: string[] }) {
@@ -29,6 +30,7 @@ function ConfigIndexRedirect() {
   if (can('platform.user.read')) return <Navigate to="users" replace />
   if (can('platform.permission.read')) return <Navigate to="permission-groups" replace />
   if (can('platform.settings.read')) return <Navigate to="basic-config" replace />
+  if (can('platform.model_provider.read')) return <Navigate to="model-providers" replace />
   if (can('platform.sso.read')) return <Navigate to="sso/inbound" replace />
   return <Navigate to="/" replace />
 }
@@ -41,13 +43,14 @@ export default function AppRoutes() {
   return <Routes>
     <Route path="/login" element={<Login />} />
     <Route path="/" element={<Workbench />} />
-    <Route path="/config" element={<Guard requiredAnyPermissions={['platform.app.read', 'platform.user.read', 'platform.settings.read', 'platform.sso.read']}><ConfigLayout onLogout={handleLogout} /></Guard>}>
+    <Route path="/config" element={<Guard requiredAnyPermissions={['platform.app.read', 'platform.user.read', 'platform.settings.read', 'platform.sso.read', 'platform.model_provider.read']}><ConfigLayout onLogout={handleLogout} /></Guard>}>
       <Route index element={<ConfigIndexRedirect />} />
       <Route path="dashboard" element={<Guard requiredPermission="platform.app.read"><DashboardConfig /></Guard>} />
       <Route path="users" element={<Guard requiredPermission="platform.user.read"><UserConfig /></Guard>} />
       <Route path="permission-groups" element={<Guard requiredPermission="platform.permission.read"><PermissionGroupConfig /></Guard>} />
       <Route path="basic-config" element={<Guard requiredPermission="platform.settings.read"><BasicConfig /></Guard>} />
       <Route path="system-security" element={<Guard requiredPermission="platform.settings.read"><SecurityConfig /></Guard>} />
+      <Route path="model-providers" element={<Guard requiredPermission="platform.model_provider.read"><ModelProviderConfig /></Guard>} />
       <Route path="sso/inbound" element={<Guard requiredPermission="platform.sso.read"><SsoConfig direction="inbound" /></Guard>} />
       <Route path="sso/outbound" element={<Guard requiredPermission="platform.sso.read"><SsoConfig direction="outbound" /></Guard>} />
     </Route>
