@@ -64,6 +64,8 @@ docker compose up -d --build
 docker compose restart api
 ```
 
+开发服务器会预热前端入口模块，并对 JavaScript、CSS 等静态模块启用 gzip 响应压缩，远程访问时无需切换启动方式或额外构建 Web 镜像。
+
 查看状态或日志：
 
 ```bash
