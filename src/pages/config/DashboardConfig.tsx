@@ -12,7 +12,7 @@ export default function DashboardConfig() {
   const load = async () => { setLoading(true); try { const [appRows, userRows, ssoRows] = await Promise.all([api.adminApps(), api.users(), ssoApi.configs('outbound')]); setApps(appRows); setUsers(userRows); setOutboundConfigs(ssoRows.filter((row) => row.protocol === 'ticket')) } catch (error) { message.error((error as Error).message) } finally { setLoading(false) } }
   useEffect(() => { void load() }, [])
   const openCreate = () => { setSelected(null); form.resetFields(); form.setFieldsValue({ enabled: true, visibility: 'public', priority: apps.length + 1, userIds: [] }); setDrawer(true) }
-  const openEdit = (row: DashboardApp) => { setSelected(row); form.setFieldsValue(row); setDrawer(true) }
+  const openEdit = (row: DashboardApp) => { setSelected(row); form.resetFields(); form.setFieldsValue(row); setDrawer(true) }
   const save = async (values: DashboardApp) => { try { if (selected) await api.updateApp(selected.id, { ...selected, ...values }); else await api.createApp(values); setDrawer(false); await load(); message.success('保存成功') } catch (error) { message.error((error as Error).message) } }
   const remove = async (id: number) => { try { await api.deleteApp(id); setChecked((ids) => ids.filter((item) => item !== id)); await load(); message.success('已删除') } catch (error) { message.error((error as Error).message) } }
   const batchDelete = async () => { try { await api.deleteApps(checked); setChecked([]); await load(); message.success('已删除选中记录') } catch (error) { message.error((error as Error).message) } }
