@@ -8,7 +8,10 @@ export function mapUser(row) {
 export function mapApp(row) {
   return {
     id: Number(row.id), code: row.code, name: row.name, priority: row.priority,
-    url: row.url, enabled: row.enabled, img: row.image_original || undefined,
+    url: row.url, enabled: row.enabled, categoryId: row.category_id ? Number(row.category_id) : undefined,
+    categoryCode: row.category_code || undefined, categoryName: row.category_name || undefined,
+    categoryPriority: row.category_priority === null || row.category_priority === undefined ? undefined : Number(row.category_priority),
+    img: row.image_original || undefined,
     imgThumbnail: row.image_thumbnail || undefined, imgFileName: row.image_filename || undefined,
     outboundSsoConfigId: row.outbound_sso_config_id ? Number(row.outbound_sso_config_id) : undefined,
     visibility: row.visibility || 'public',

@@ -29,11 +29,22 @@ export interface PermissionDefinition {
   name: string
 }
 
+export interface DashboardCategory {
+  id: number
+  code: string
+  name: string
+  priority: number
+}
+
 export interface DashboardApp {
   id: number
   code: string
   name: string
   priority: number
+  categoryId?: number
+  categoryCode?: string
+  categoryName?: string
+  categoryPriority?: number
   url: string
   img?: string
   imgThumbnail?: string

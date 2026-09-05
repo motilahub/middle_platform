@@ -5,6 +5,7 @@ import Login from '../pages/Login'
 import Workbench from '../pages/Workbench'
 import ConfigLayout from '../pages/config/ConfigLayout'
 import DashboardConfig from '../pages/config/DashboardConfig'
+import CategoryConfig from '../pages/config/CategoryConfig'
 import UserConfig from '../pages/config/UserConfig'
 import SsoConfig from '../pages/config/SsoConfig'
 import BasicConfig from '../pages/config/SystemSecurityConfig'
@@ -46,6 +47,7 @@ export default function AppRoutes() {
     <Route path="/config" element={<Guard requiredAnyPermissions={['platform.app.read', 'platform.user.read', 'platform.settings.read', 'platform.sso.read', 'platform.model_provider.read']}><ConfigLayout onLogout={handleLogout} /></Guard>}>
       <Route index element={<ConfigIndexRedirect />} />
       <Route path="dashboard" element={<Guard requiredPermission="platform.app.read"><DashboardConfig /></Guard>} />
+      <Route path="app-categories" element={<Guard requiredPermission="platform.app.read"><CategoryConfig /></Guard>} />
       <Route path="users" element={<Guard requiredPermission="platform.user.read"><UserConfig /></Guard>} />
       <Route path="permission-groups" element={<Guard requiredPermission="platform.permission.read"><PermissionGroupConfig /></Guard>} />
       <Route path="basic-config" element={<Guard requiredPermission="platform.settings.read"><BasicConfig /></Guard>} />

@@ -1,4 +1,4 @@
-import { DashboardApp, PermissionDefinition, PermissionGroup, SecuritySettings, SystemSettings, User } from './types'
+import { DashboardApp, DashboardCategory, PermissionDefinition, PermissionGroup, SecuritySettings, SystemSettings, User } from './types'
 import { clearCsrfToken, request } from './shared/api-client'
 
 export const api = {
@@ -11,6 +11,10 @@ export const api = {
   adminSecuritySettings: () => request<SecuritySettings>('/api/admin/security-settings'),
   updateSecuritySettings: (settings: SecuritySettings) => request<SecuritySettings>('/api/admin/security-settings', { method: 'PUT', body: JSON.stringify(settings) }),
   visibleApps: () => request<DashboardApp[]>('/api/workbench/apps'),
+  adminCategories: () => request<DashboardCategory[]>('/api/admin/app-categories'),
+  createCategory: (category: Omit<DashboardCategory, 'id'>) => request<{ id: number }>('/api/admin/app-categories', { method: 'POST', body: JSON.stringify(category) }),
+  updateCategory: (id: number, category: Omit<DashboardCategory, 'id'>) => request<void>(`/api/admin/app-categories/${id}`, { method: 'PUT', body: JSON.stringify(category) }),
+  deleteCategory: (id: number) => request<void>(`/api/admin/app-categories/${id}`, { method: 'DELETE' }),
   adminApps: () => request<DashboardApp[]>('/api/admin/apps'),
   createApp: (app: Omit<DashboardApp, 'id'>) => request<{ id: number }>('/api/admin/apps', { method: 'POST', body: JSON.stringify(app) }),
   updateApp: (id: number, app: DashboardApp) => request<void>(`/api/admin/apps/${id}`, { method: 'PUT', body: JSON.stringify(app) }),
