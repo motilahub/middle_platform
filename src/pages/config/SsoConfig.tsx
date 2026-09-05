@@ -3,6 +3,7 @@ import { App, Button, Drawer, Form, Input, InputNumber, Popconfirm, Select, Spac
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { ssoApi } from '../../platform/sso/api'
 import { SsoConfig as SsoConfigType, SsoDirection, SsoProtocol } from '../../platform/sso/types'
+import { useAuth } from '../../auth'
 
 type FormValues = Omit<SsoConfigType, 'id' | 'direction' | 'createdAt' | 'updatedAt'>
 
@@ -20,12 +21,13 @@ const callbackUrlRule = {
 
 export default function SsoConfig({ direction }: { direction: SsoDirection }) {
   const { message } = App.useApp()
+  const { can } = useAuth()
   const [rows, setRows] = useState<SsoConfigType[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<SsoConfigType | null>(null)
   const [checked, setChecked] = useState<number[]>([])
   const [drawer, setDrawer] = useState(false)
-  const [page, setPage] = useState({ current: 1, pageSize: 10 })
+  const [page, setPage] = useState({ current: 1, pageSize: 10 }); const [keyword, setKeyword] = useState('')
   const [form] = Form.useForm<FormValues>()
   const inbound = direction === 'inbound'
   const title = inbound ? '外部访入' : '内部访出'
@@ -59,14 +61,15 @@ export default function SsoConfig({ direction }: { direction: SsoDirection }) {
     { title: '协议', dataIndex: 'protocol', width: 100, render: (protocol: SsoProtocol) => protocolLabels[protocol] },
     { title: '系统地址', dataIndex: 'systemUrl', width: 240, ellipsis: true },
     inbound ? { title: '校验地址', dataIndex: 'verifyUrl', width: 240, ellipsis: true, render: (value?: string) => value || '-' } : { title: 'Ticket 有效期', dataIndex: 'ticketTtlSeconds', width: 130, render: (value?: number) => `${value || 30} 秒` },
-    { title: '状态', dataIndex: 'enabled', width: 80, render: (enabled: boolean, row: SsoConfigType) => <Switch size="small" checked={enabled} onChange={(value) => void toggle(row, value)} /> },
+    { title: '状态', dataIndex: 'enabled', width: 80, render: (enabled: boolean, row: SsoConfigType) => <Switch size="small" checked={enabled} disabled={!can('platform.sso.write')} onChange={(value) => void toggle(row, value)} /> },
     { title: '更新时间', dataIndex: 'updatedAt', width: 180, render: (value?: string) => value ? new Date(value).toLocaleString('zh-CN') : '-' },
-    { title: '操作', width: 150, render: (_: unknown, row: SsoConfigType) => <Space><Button type="link" onClick={() => openEdit(row)}>编辑</Button><Popconfirm title="确认删除该配置？" onConfirm={() => void remove(row.id)}><Button type="link" danger>删除</Button></Popconfirm></Space> },
-  ], [inbound, page, rows])
+    { title: '操作', width: 150, render: (_: unknown, row: SsoConfigType) => <Space>{can('platform.sso.write') && <Button type="link" onClick={() => openEdit(row)}>编辑</Button>}{can('platform.sso.unlink') && <Popconfirm title="确认删除该配置？" onConfirm={() => void remove(row.id)}><Button type="link" danger>删除</Button></Popconfirm>}</Space> },
+  ], [inbound, page, rows, can])
 
   return <div>
-    <div className="page-title"><div><Typography.Title level={3}>{title}</Typography.Title><Typography.Text type="secondary">{inbound ? '配置其他系统进入本系统的单点登录方式' : '配置从本系统进入其他业务系统的单点登录方式'}</Typography.Text></div><Space><Button danger icon={<DeleteOutlined />} disabled={!checked.length} onClick={() => void batchDelete()}>删除选中</Button><Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建</Button></Space></div>
-    <Table loading={loading} rowKey="id" columns={columns} dataSource={rows} scroll={{ x: 1300 }} rowSelection={{ selectedRowKeys: checked, preserveSelectedRowKeys: true, onChange: (keys) => setChecked(keys as number[]) }} pagination={{ current: page.current, pageSize: page.pageSize, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: (total) => `共 ${total} 条`, onChange: (current, pageSize) => setPage({ current, pageSize }) }} onRow={(record) => ({ onClick: (event) => { if ((event.target as HTMLElement).closest('button,.ant-popover,.ant-switch,.ant-checkbox-wrapper')) return; openEdit(record) } })} />
+    <div className="page-title"><div><Typography.Title level={3}>{title}</Typography.Title><Typography.Text type="secondary">{inbound ? '配置其他系统进入本系统的单点登录方式' : '配置从本系统进入其他业务系统的单点登录方式'}</Typography.Text></div><Space>{can('platform.sso.unlink') && <Button danger icon={<DeleteOutlined />} disabled={!checked.length} onClick={() => void batchDelete()}>删除选中</Button>}{can('platform.sso.create') && <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建</Button>}</Space></div>
+    <Input.Search className="list-filter" allowClear placeholder="筛选编码、名称或系统地址" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage((value) => ({ ...value, current: 1 })) }} />
+    <Table loading={loading} rowKey="id" columns={columns} dataSource={rows.filter((row) => `${row.code} ${row.name} ${row.systemUrl}`.toLowerCase().includes(keyword.trim().toLowerCase()))} scroll={{ x: 1300 }} rowSelection={{ selectedRowKeys: checked, preserveSelectedRowKeys: true, onChange: (keys) => setChecked(keys as number[]) }} pagination={{ current: page.current, pageSize: page.pageSize, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: (total) => `共 ${total} 条`, onChange: (current, pageSize) => setPage({ current, pageSize }) }} onRow={(record) => ({ onClick: (event) => { if ((event.target as HTMLElement).closest('button,.ant-popover,.ant-switch,.ant-checkbox-wrapper')) return; openEdit(record) } })} />
     <Drawer title={selected ? `编辑${title}` : `新建${title}`} width={520} open={drawer} onClose={() => setDrawer(false)} afterOpenChange={(open) => { if (open && selected) form.setFieldsValue(selected) }} destroyOnClose extra={<Button type="primary" onClick={() => form.submit()}>保存</Button>}>
       <Form form={form} layout="vertical" onFinish={(values) => void save(values)}>
         <Form.Item name="code" label="编码" rules={[{ required: true, message: '请输入编码' }]}><Input placeholder="例如 oa_main" disabled={!!selected} /></Form.Item>

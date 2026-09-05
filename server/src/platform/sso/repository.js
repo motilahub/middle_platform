@@ -34,7 +34,7 @@ export function createSsoRepository(pool) {
       return (await pool.query(`SELECT s.* FROM dashboard_apps app
         JOIN sso_configs s ON s.id=app.outbound_sso_config_id
         WHERE app.id=$1 AND app.enabled=TRUE AND s.direction='outbound' AND s.protocol='ticket' AND s.enabled=TRUE
-          AND (NOT EXISTS (SELECT 1 FROM dashboard_app_users WHERE app_id=app.id)
+          AND (app.visibility='public'
             OR EXISTS (SELECT 1 FROM dashboard_app_users WHERE app_id=app.id AND user_id=$2))`, [appId, userId])).rows[0]
     },
     async issueTicket(ticketHash, configId, userId, expiresAt) {

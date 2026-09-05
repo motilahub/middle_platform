@@ -4,9 +4,11 @@ import { DeleteOutlined, DownloadOutlined, SaveOutlined, UploadOutlined } from '
 import { api } from '../../api'
 import { useSystemSettings } from '../../system-settings'
 import type { SystemSettings } from '../../types'
+import { useAuth } from '../../auth'
 
 export default function SystemSecurityConfig() {
   const { message } = App.useApp()
+  const { can } = useAuth()
   const { update } = useSystemSettings()
   const [loading, setLoading] = useState(true)
   const [form] = Form.useForm<SystemSettings>()
@@ -49,7 +51,7 @@ export default function SystemSecurityConfig() {
 
   if (loading) return <div className="route-loading"><Spin size="large" /></div>
   return <div>
-    <div className="page-title"><div><Typography.Title level={3}>基础配置</Typography.Title><Typography.Text type="secondary">维护登录界面、浏览器标识和系统页脚信息</Typography.Text></div><Button type="primary" icon={<SaveOutlined />} onClick={() => form.submit()}>保存</Button></div>
+    <div className="page-title"><div><Typography.Title level={3}>基础配置</Typography.Title><Typography.Text type="secondary">维护登录界面、浏览器标识和系统页脚信息</Typography.Text></div><Button type="primary" disabled={!can('platform.settings.write')} icon={<SaveOutlined />} onClick={() => form.submit()}>保存</Button></div>
     <Form form={form} layout="vertical" onFinish={(values) => void save(values)} className="system-settings-form">
       <Typography.Title level={5}>品牌标识</Typography.Title>
       <Form.Item name="systemTitle" label="系统标题" rules={[{ required: true, message: '请输入系统标题' }]}><Input maxLength={120} placeholder="集成平台" /></Form.Item>

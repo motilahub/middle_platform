@@ -7,6 +7,26 @@ export interface User {
   name: string
   password?: string
   role: UserRole
+  groups?: Array<{ code: string; name: string }>
+  groupIds?: number[]
+  permissions?: string[]
+}
+
+export interface PermissionGroup {
+  id: number
+  code: string
+  name: string
+  description?: string
+  permissions: string[]
+  impliedGroupIds?: number[]
+}
+
+export interface PermissionDefinition {
+  code: string
+  module: string
+  resource: string
+  operation: string
+  name: string
 }
 
 export interface DashboardApp {
@@ -20,6 +40,7 @@ export interface DashboardApp {
   imgFileName?: string
   outboundSsoConfigId?: number
   enabled: boolean
+  visibility: 'public' | 'private'
   userIds: number[]
 }
 

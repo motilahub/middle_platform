@@ -2,9 +2,9 @@ import { createSsoController } from './controller.js'
 import { createSsoRepository } from './repository.js'
 import { createSsoService } from './service.js'
 
-export function createSsoModule({ pool, mapUser, establishSession }) {
+export function createSsoModule({ pool, mapUser, establishSession, permissionService }) {
   const repository = createSsoRepository(pool)
-  const service = createSsoService(repository, mapUser)
+  const service = createSsoService(repository, mapUser, permissionService)
   const controller = createSsoController(service, establishSession)
   return { controller, service }
 }
