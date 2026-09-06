@@ -67,7 +67,7 @@ export default function PermissionGroupConfig() {
   return <div>
     <div className="page-title"><div><Typography.Title level={3}>权限管理</Typography.Title><Typography.Text type="secondary">维护权限组合、继承关系与授权属性</Typography.Text></div>{can('platform.permission.create') && <Button type="primary" icon={<PlusOutlined />} onClick={create}>创建</Button>}</div>
     <Input.Search className="list-filter" allowClear placeholder="筛选编码、名称或说明" value={keyword} onChange={(event) => setKeyword(event.target.value)} />
-    <Table loading={loading} rowKey="id" columns={columns} dataSource={filteredGroups} pagination={{ pageSize: 50 }} onRow={(record) => ({ onClick: (event) => { if ((event.target as HTMLElement).closest('button,.ant-popover')) return; if (can('platform.permission.write')) edit(record) } })} />
+    <Table className="config-table" loading={loading} rowKey="id" columns={columns} dataSource={filteredGroups} scroll={{ x: 900 }} pagination={{ pageSize: 50 }} onRow={(record) => ({ onClick: (event) => { if ((event.target as HTMLElement).closest('button,.ant-popover')) return; if (can('platform.permission.write')) edit(record) } })} />
     <Drawer title={selected ? '编辑权限组' : '创建权限组'} width={520} open={open} onClose={() => setOpen(false)} destroyOnClose extra={<Button type="primary" onClick={() => form.submit()}>保存</Button>}>
       <Form form={form} layout="vertical" onFinish={(values) => void save(values)}>
         <Form.Item name="code" label="编码" rules={[{ required: true, message: '请输入权限组编码' }, { pattern: /^[a-z][a-z0-9_]{2,99}$/, message: '使用 3-100 位小写字母、数字或下划线' }]}><Input disabled={!!selected} /></Form.Item>

@@ -5,6 +5,7 @@ export interface User {
   uuid: string
   code: string
   name: string
+  avatar?: string | null
   password?: string
   role: UserRole
   groups?: Array<{ code: string; name: string }>
@@ -63,6 +64,13 @@ export interface SystemSettings {
   loginText: string
   footerRecord?: string
   showWorkbenchHeader: boolean
+  aiChatWelcome: string
+  aiChatFirstPromptCount: number
+  aiChatMaxRounds: number
+  aiChatFollowupCount: number
+  aiChatRobotIcon?: string
+  aiChatTheme: 'light' | 'dark' | 'nature'
+  aiChatEffects: boolean
   updatedAt?: string
 }
 

@@ -21,6 +21,20 @@ export function createSettingsService(repository, imageStore, mappers, securityP
       const result = await repository.updateSystem([systemTitle, browserTitle, systemLogo, titleLogo, text(body.loginText, current.login_text, 255), text(body.footerRecord, current.footer_record || '', 255) || null, typeof body.showWorkbenchHeader === 'boolean' ? body.showWorkbenchHeader : current.show_workbench_header])
       return mappers.mapSystemSettings(result)
     },
+    async aiChat() { return mappers.mapSystemSettings(await repository.readSystem()) },
+    async updateAiChat(body) {
+      const current = await repository.readAiChat()
+      const welcome = text(body.aiChatWelcome, current.ai_chat_welcome, 500)
+      if (!welcome) throw Object.assign(new Error('AI Chat 欢迎词不能为空'), { status: 400 })
+      const integerValue = (value, fallback, label, min, max) => integer(value ?? fallback, label, min, max)
+      const firstPromptCount = integerValue(body.aiChatFirstPromptCount, current.ai_chat_first_prompt_count, '首轮推荐问题个数', 0, 10)
+      const maxRounds = integerValue(body.aiChatMaxRounds, current.ai_chat_max_rounds, '多轮对话轮数', 1, 100)
+      const followupCount = integerValue(body.aiChatFollowupCount, current.ai_chat_followup_count, '对话后推荐问题个数', 0, 10)
+      const robotIcon = body.aiChatRobotIcon === undefined ? current.ai_chat_robot_icon : await imageStore.persistIcon(body.aiChatRobotIcon, current.ai_chat_robot_icon)
+      const theme = ['light', 'dark', 'nature'].includes(body.aiChatTheme) ? body.aiChatTheme : current.ai_chat_theme
+      const effects = typeof body.aiChatEffects === 'boolean' ? body.aiChatEffects : current.ai_chat_effects
+      return mappers.mapSystemSettings(await repository.updateAiChat([welcome, firstPromptCount, maxRounds, followupCount, robotIcon, theme, effects]))
+    },
     async security() { return mappers.mapSecuritySettings(await repository.readSecurity()) },
     async updateSecurity(body) {
       const next = {
@@ -38,4 +52,3 @@ export function createSettingsService(repository, imageStore, mappers, securityP
     },
   }
 }
-

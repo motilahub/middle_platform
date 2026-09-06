@@ -29,7 +29,7 @@ function isPrivateAddress(address) {
 export function normalizeBaseUrl(value) {
   let url
   try { url = new URL(String(value || '').trim()) } catch { throw Object.assign(new Error('服务地址必须是有效 URL'), { status: 400 }) }
-  if (url.protocol !== 'https:') throw Object.assign(new Error('模型服务地址必须使用 HTTPS'), { status: 400 })
+  if (!['http:', 'https:'].includes(url.protocol)) throw Object.assign(new Error('模型服务地址必须使用 HTTP 或 HTTPS 协议'), { status: 400 })
   if (url.username || url.password || !url.hostname || (net.isIP(url.hostname) && isPrivateAddress(url.hostname))) throw Object.assign(new Error('模型服务地址不允许使用本地或私网地址'), { status: 400 })
   return url.toString().replace(/\/$/, '')
 }
@@ -68,7 +68,65 @@ export function createProviderClient(fetchImpl = fetch) {
     const models = Array.isArray(payload.data) ? payload.data : Array.isArray(payload.models) ? payload.models : []
     return [...new Set(models.map((model) => typeof model === 'string' ? model : model?.id || model?.name).filter((model) => typeof model === 'string' && model.trim()))].sort((left, right) => left.localeCompare(right))
   }
-  return { listModels }
+
+  async function streamChat({ baseUrl, apiKey, model, messages }) {
+    const normalizedBaseUrl = normalizeBaseUrl(baseUrl)
+    const url = new URL(`${normalizedBaseUrl}/chat/completions`)
+    await ensurePublicHost(url)
+    let response
+    try {
+      response = await fetchImpl(url, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${apiKey}`, accept: 'text/event-stream', 'content-type': 'application/json' },
+        body: JSON.stringify({ model, messages, stream: true }),
+        signal: AbortSignal.timeout(120_000),
+        redirect: 'error',
+      })
+    } catch (error) {
+      if (error?.name === 'TimeoutError') throw Object.assign(new Error('模型服务响应超时'), { status: 504 })
+      throw Object.assign(new Error('无法连接模型服务'), { status: 502 })
+    }
+    if (!response.ok) return responseError(response, response.status === 401 || response.status === 403 ? '模型服务认证失败，请检查 API Key' : '模型服务返回异常')
+    if (!response.body) throw Object.assign(new Error('模型服务未返回流式响应'), { status: 502 })
+
+    async function* events() {
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
+          const parts = buffer.split(/\r?\n\r?\n/)
+          buffer = parts.pop() || ''
+          for (const part of parts) {
+            const data = part.split(/\r?\n/).filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trim()).join('\n')
+            if (!data || data === '[DONE]') continue
+            let payload
+            try { payload = JSON.parse(data) } catch { continue }
+            const delta = payload.choices?.[0]?.delta?.content
+            if (typeof delta === 'string' && delta) yield delta
+          }
+          if (done) {
+            const data = buffer.split(/\r?\n/).filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trim()).join('\n')
+            if (data && data !== '[DONE]') {
+              try {
+                const payload = JSON.parse(data)
+                const delta = payload.choices?.[0]?.delta?.content
+                if (typeof delta === 'string' && delta) yield delta
+              } catch { /* Ignore an incomplete provider event. */ }
+            }
+            break
+          }
+        }
+      } finally {
+        reader.releaseLock()
+      }
+    }
+    return events()
+  }
+
+  return { listModels, streamChat }
 }
 
 export { vendorDefinitions }

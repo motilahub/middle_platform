@@ -42,7 +42,6 @@ export function orderModules(modules, availableKeys = new Set()) {
 
 export async function loadBusinessModules({ directory, enabled = [], dependencies, platformModuleKeys = platformKeys }) {
   const requested = parseEnabledModules(enabled)
-  if (!requested.length) return []
   const entries = await fs.readdir(directory, { withFileTypes: true })
   const candidates = new Map()
   for (const entry of entries) {
@@ -59,7 +58,9 @@ export async function loadBusinessModules({ directory, enabled = [], dependencie
       throw error
     }
   }
-  const modules = requested.map((key) => {
+  const defaultKeys = [...candidates.values()].filter((module) => module.manifest.enabledByDefault).map((module) => module.key)
+  const selectedKeys = [...new Set([...defaultKeys, ...requested])]
+  const modules = selectedKeys.map((key) => {
     const module = candidates.get(key)
     if (!module) throw new Error(`启用的业务模块不存在或未导出: ${key}`)
     return module

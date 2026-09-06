@@ -17,7 +17,8 @@ export function createIdentityService(repository, mapUser, securityPolicy, permi
     async deleteGroup(id) { return permissionService.deleteGroup(id) },
     async create(body) {
       const hash = await bcrypt.hash(securityPolicy.validatePassword(body.password), 12)
-      const user = await repository.create([crypto.randomUUID(), body.code, body.name, hash, body.role])
+      const avatar = body.avatar ? String(body.avatar).trim().slice(0, 1000) : null
+      const user = await repository.create([crypto.randomUUID(), body.code, body.name, hash, body.role, avatar])
       const groupIds = body.groupIds || await repository.defaultGroupIds(body.role)
       await permissionService.setUserGroups(user.id, groupIds)
       return enrich(user)
@@ -27,7 +28,8 @@ export function createIdentityService(repository, mapUser, securityPolicy, permi
       if (!current) throw Object.assign(new Error('用户不存在'), { status: 404 })
       const role = current.code === 'admin' ? 'super_admin' : body.role
       const hash = body.password ? await bcrypt.hash(securityPolicy.validatePassword(body.password), 12) : null
-      await repository.update(id, [body.name, role, hash])
+      const avatar = body.avatar === undefined ? current.avatar || null : String(body.avatar || '').trim().slice(0, 1000) || null
+      await repository.update(id, [body.name, role, hash, avatar])
       if (body.groupIds) await permissionService.setUserGroups(id, body.groupIds)
     },
     async remove(id) {

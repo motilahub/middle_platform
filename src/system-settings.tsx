@@ -8,6 +8,12 @@ const defaults: SystemSettings = {
   browserTitle: '集成平台',
   loginText: '控制台',
   showWorkbenchHeader: true,
+  aiChatWelcome: '你好，我是通用助手，有什么可以帮你？',
+  aiChatFirstPromptCount: 3,
+  aiChatMaxRounds: 20,
+  aiChatFollowupCount: 3,
+  aiChatTheme: 'light',
+  aiChatEffects: true,
 }
 interface SystemSettingsValue { settings: SystemSettings; refresh: () => Promise<void>; update: (settings: SystemSettings) => void; defaultLogo: string }
 const SystemSettingsContext = createContext<SystemSettingsValue | null>(null)

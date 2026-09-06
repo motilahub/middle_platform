@@ -1,6 +1,6 @@
 export function mapUser(row) {
   return {
-    id: Number(row.id), uuid: row.uuid, code: row.code, name: row.name, role: row.role,
+    id: Number(row.id), uuid: row.uuid, code: row.code, name: row.name, avatar: row.avatar || undefined, role: row.role,
     groups: row.groups || [], permissions: row.permissions || [],
   }
 }
@@ -28,6 +28,13 @@ export function mapSystemSettings(row) {
     loginText: row.login_text,
     footerRecord: row.footer_record || undefined,
     showWorkbenchHeader: !!row.show_workbench_header,
+    aiChatWelcome: row.ai_chat_welcome || '你好，我是通用助手，有什么可以帮你？',
+    aiChatFirstPromptCount: Number(row.ai_chat_first_prompt_count ?? 3),
+    aiChatMaxRounds: Number(row.ai_chat_max_rounds ?? 20),
+    aiChatFollowupCount: Number(row.ai_chat_followup_count ?? 3),
+    aiChatRobotIcon: row.ai_chat_robot_icon || undefined,
+    aiChatTheme: row.ai_chat_theme || 'light',
+    aiChatEffects: row.ai_chat_effects !== false,
     updatedAt: row.updated_at,
   }
 }

@@ -23,7 +23,7 @@
 | 图片处理 | Sharp |
 | 运行方式 | Docker Compose、Nginx |
 
-前端页面和业务模块位于 `src/`，后端 API 与业务模块位于 `server/src/`；React Router 负责前端路由组合，Express 模块注册器负责后端 API 装配。完整的前后端技术栈、模块边界和依赖规则请参阅 [`docs/系统架构.md`](docs/系统架构.md)。
+前端页面和业务模块位于 `src/`，后端 API 与业务模块位于 `server/src/`；React Router 负责前端路由组合，Express 模块注册器负责后端 API 装配。完整的前后端技术栈、模块边界和依赖规则请参阅 [`docs/系统架构.md`](docs/系统架构.md)。叫号系统目前处于方案设计阶段，暂不开发，设计边界和后续演进路线参阅 [`docs/叫号系统设计.md`](docs/叫号系统设计.md)。
 
 ## 界面概览
 
@@ -185,6 +185,7 @@ server/src/platform/identity/ 用户认证与用户管理
 server/src/platform/workbench/ 工作台应用与图标管理
 server/src/platform/settings/ 系统与安全配置
 server/src/platform/model-providers/ 模型供应商配置与受控模型发现
+server/src/modules/ai-assistant/ AI 对话会话、消息和流式回复模块
 server/src/platform/health/   健康检查
 server/src/platform/identity/permissions.js 用户组、权限码与权限解析
 server/src/middleware/        认证、CSRF、限流和 HTTP 公共中间件
@@ -201,11 +202,17 @@ server/Dockerfile            API 生产镜像
 
 面向多行业扩展的 Monorepo 目录、模块边界、依赖方向、数据库迁移、多租户与权限规范请参阅 [`docs/系统架构.md`](docs/系统架构.md)。该文档是整个工程后续开发和模块接入的架构基准。
 
+AI 对话设计与开发清单请参阅 [`docs/AI对话系统设计.md`](docs/AI对话系统设计.md)。页面使用 `@ant-design/x`，支持会话历史、SSE 流式回复、文件/图片附件、浏览器语音转文字、`@` 文件/智能体/Skill、知识库创建和基础检索。模型供应商和具体模型由智能体封装，输入框右下方提供知识库与智能体选择，并支持后台配置欢迎词、推荐问题、对话轮数、动态机器人图标、明亮/深色/自然主题及动态效果开关。
+
+AI Chat 后续任务请参阅 [`docs/AI Chat待办事项.md`](docs/AI%20Chat待办事项.md)。管理控制台提供智能体配置和 AI Chat 配置，可维护模型绑定、System Prompt、欢迎词、推荐问题、对话轮数、机器人图标、主题和动态效果；工作台、分类、用户、权限组、SSO 和模型供应商列表已统一适配移动端：列保持最小可读宽度，手机端可横向滑动查看完整内容，中文不会被压缩成竖排。
+
+管理控制台移动端标题区采用紧凑横向布局，标题、说明和操作按钮会在必要时换行，减少列表顶部无效留白。
+
 当前代码已按该规范适配：前端使用 `src/app` 组合路由，后端使用 `server/src/bootstrap/module-registry.js` 注册平台和业务模块；身份、工作台、系统设置、健康检查和 SSO 已按平台边界拆分，`server/src/index.js` 仅负责基础设施启动与依赖装配。新增行业功能请从 `src/modules` 与 `server/src/modules` 的模块模板开始。
 
 新客户端通过公共请求层访问 `/api/v1`；服务端暂时保留 `/api` 兼容路径。平台基础表和增量变更由 `server/src/db/migrations/` 顺序迁移，禁止在业务入口中新增建表 DDL。
 
-业务模块通过 `ENABLED_MODULES` 按需加载，例如 `ENABLED_MODULES=education.sunny-class,finance`。模块放在 `server/src/modules/<module-key>/`，由 `server/src/bootstrap/module-loader.js` 发现、校验依赖、执行迁移并注册路由；未配置的业务模块不会加载。
+业务模块通过 `ENABLED_MODULES` 按需加载，例如 `ENABLED_MODULES=education.sunny-class,finance`。模块放在 `server/src/modules/<module-key>/`，由 `server/src/bootstrap/module-loader.js` 发现、校验依赖、执行迁移并注册路由；普通模块未配置时不会加载，声明 `enabledByDefault` 的平台通用模块会默认加载，也可以通过配置显式加载其他模块。
 
 业务模块可以在 manifest 中声明 `permissions`，模块加载阶段会注册权限码。例如 `education.student.read`、`education.student.write`；路由通过 `dependencies.requirePermission(code)` 校验，后续记录规则应由模块提供服务端 Domain 构造器。
 

@@ -22,5 +22,4 @@ export function createModule(dependencies) {
 }
 ```
 
-使用 `ENABLED_MODULES` 配置启用模块，模块依赖的平台核心能力由启动器自动视为已满足。
-
+使用 `ENABLED_MODULES` 配置启用模块，模块依赖的平台核心能力由启动器自动视为已满足。模块 manifest 可以声明 `enabledByDefault: true`，用于默认提供的平台通用模块；未声明时仍需在 `ENABLED_MODULES` 中显式启用。

@@ -40,6 +40,12 @@ export function createModelProviderService(repository, cipher, providerClient) {
   }
   return {
     async list() { return (await repository.list()).map(mapModelProvider) },
+    async listAvailable() {
+      return (await repository.list()).filter((provider) => provider.enabled && provider.api_key_encrypted).map((provider) => {
+        const mapped = mapModelProvider(provider)
+        return { ...mapped, models: [...new Set([...(mapped.models || []), ...(mapped.defaultModel ? [mapped.defaultModel] : [])])] }
+      })
+    },
     async create(body) {
       const values = providerValues(body, encryptedApiKey(body, null, true))
       return repository.create([values.code, values.name, values.vendor, values.baseUrl, values.apiKeyEncrypted, values.enabled, '[]', values.defaultModel, values.remark])
@@ -55,6 +61,15 @@ export function createModelProviderService(repository, cipher, providerClient) {
       return { success: true, modelCount: models.length, message: `连接成功，服务返回 ${models.length} 个模型` }
     },
     async syncModels(id) { return fetchModels(id, true) },
+    async streamChat(id, model, messages) {
+      const provider = await repository.find(id)
+      if (!provider) throw failure('模型供应商不存在', 404)
+      if (!provider.enabled) throw failure('模型供应商已停用', 400)
+      if (!provider.api_key_encrypted) throw failure('该供应商尚未配置 API Key')
+      const selectedModel = String(model || provider.default_model || provider.models?.[0] || '').trim()
+      if (!selectedModel) throw failure('该供应商尚未配置可用模型')
+      return { model: selectedModel, stream: await providerClient.streamChat({ ...withSecret(provider), model: selectedModel, messages }) }
+    },
     setEnabled(id, enabled) { return repository.setEnabled(id, !!enabled) },
     deleteMany(ids) { return ids.length ? repository.deleteMany(ids) : undefined },
     deleteOne(id) { return repository.deleteOne(id) },
