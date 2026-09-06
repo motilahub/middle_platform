@@ -61,7 +61,7 @@ app.use(normalizeVersionedApi)
 
 const ssoModule = createSsoModule({ pool, mapUser, establishSession: sessionSecurity.establishSession, permissionService })
 const healthModule = createHealthModule(pool)
-const identityModule = createIdentityModule({ pool, mapUser, securityPolicy, sessionSecurity, permissionService })
+const identityModule = createIdentityModule({ pool, uploadRoot, mapUser, securityPolicy, sessionSecurity, permissionService })
 const settingsModule = createSettingsModule({ pool, uploadRoot, mapSystemSettings, mapSecuritySettings, securityPolicy })
 const workbenchModule = createWorkbenchModule({ pool, uploadRoot, mapApp, ssoService: ssoModule.service })
 const modelProviderModule = createModelProviderModule({ pool, encryptionKey: process.env.MODEL_PROVIDER_ENCRYPTION_KEY || sessionSecret })

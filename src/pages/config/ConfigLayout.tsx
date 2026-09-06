@@ -6,6 +6,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth'
 import { useSystemSettings } from '../../system-settings'
 import UserMenu from '../../platform/identity/UserMenu'
+import { sanitizeHtml } from '../../shared/sanitize-html'
 
 export default function ConfigLayout({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate()
@@ -24,7 +25,7 @@ export default function ConfigLayout({ onLogout }: { onLogout: () => void }) {
     (can('platform.app.read') || can('platform.settings.read') || can('platform.permission.read') || can('platform.model_provider.read') || can('platform.ai_agent.read') || ssoMenu) && { key: 'system-config', icon: <SettingOutlined />, label: '系统配置', children: [can('platform.settings.read') && { key: 'basic-config', label: '基础配置', onClick: () => navigate('/config/basic-config') }, can('platform.settings.read') && { key: 'system-security', label: '系统安全', onClick: () => navigate('/config/system-security') }, can('platform.settings.read') && { key: 'ai-chat', label: 'AI Chat 配置', onClick: () => navigate('/config/ai-chat') }, can('platform.app.read') && { key: 'app-categories', label: '控制台分类', onClick: () => navigate('/config/app-categories') }, can('platform.model_provider.read') && { key: 'model-providers', label: '模型供应商', onClick: () => navigate('/config/model-providers') }, can('platform.ai_agent.read') && { key: 'ai-agents', label: '智能体配置', onClick: () => navigate('/config/ai-agents') }, can('platform.permission.read') && { key: 'permission-groups', label: '权限管理', onClick: () => navigate('/config/permission-groups') }, ssoMenu].filter(Boolean) },
   ].filter(Boolean)
   const menu = <Menu mode="inline" inlineCollapsed={collapsed && !!screens.md} selectedKeys={[selectedKey]} items={menuItems as MenuProps['items']} onClick={() => setMobileMenuOpen(false)} />
-  const brand = <div className="sider-brand"><img className="brand-mark small" src={settings.systemLogo || defaultLogo} alt={settings.systemTitle} />{(!collapsed || !screens.md) && <strong>{settings.systemTitle}</strong>}</div>
+  const brand = <button type="button" className="sider-brand" onClick={() => navigate('/')} aria-label="返回首页"><img className="brand-mark small" src={settings.systemLogo || defaultLogo} alt={settings.systemTitle} />{(!collapsed || !screens.md) && <strong>{settings.systemTitle}</strong>}</button>
   const toggleMenu = () => screens.md ? setCollapsed((value) => !value) : setMobileMenuOpen(true)
 
   return <Layout className="config-layout">
@@ -32,7 +33,7 @@ export default function ConfigLayout({ onLogout }: { onLogout: () => void }) {
     <Layout>
       <Layout.Header className="config-header"><Button className="config-header-menu" type="text" icon={screens.md ? (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />) : <MenuOutlined />} onClick={toggleMenu} title={screens.md ? (collapsed ? '展开菜单' : '收起菜单') : '展开菜单'} /><Button type="text" onClick={() => navigate('/config/dashboard')}>控制台</Button><UserMenu user={user!} onLogout={onLogout} /></Layout.Header>
       <Layout.Content className="config-content"><Outlet /></Layout.Content>
-      {settings.footerRecord && <Layout.Footer className="config-footer">{settings.footerRecord}</Layout.Footer>}
+      {settings.footerRecord && <Layout.Footer className="config-footer" dangerouslySetInnerHTML={{ __html: sanitizeHtml(settings.footerRecord) }} />}
     </Layout>
     <Drawer className="config-mobile-drawer" placement="left" width={272} open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} closable={false} styles={{ body: { padding: 0 } }}>{brand}{menu}</Drawer>
   </Layout>

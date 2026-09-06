@@ -24,6 +24,7 @@ export interface AiMessage {
 export interface AiAttachment {
   name: string
   url: string
+  originalUrl?: string
   mime: string
   size: number
 }

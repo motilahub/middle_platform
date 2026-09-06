@@ -8,6 +8,7 @@ const defaults: SystemSettings = {
   browserTitle: '集成平台',
   loginText: '控制台',
   showWorkbenchHeader: true,
+  showAiChatHeader: true,
   aiChatWelcome: '你好，我是通用助手，有什么可以帮你？',
   aiChatFirstPromptCount: 3,
   aiChatMaxRounds: 20,

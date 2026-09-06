@@ -87,7 +87,7 @@ export function createAiAssistantService(repository, modelProviderService, attac
       const content = String(body.content || '').trim()
       const rawAttachments = Array.isArray(body.attachments) ? body.attachments : []
       if (content.length > 20_000) throw failure('消息内容不能超过 20000 个字符')
-      const attachments = rawAttachments.slice(0, 5).map((item) => ({ name: String(item.name || '').slice(0, 255), url: String(item.url || '').slice(0, 500), mime: String(item.mime || '').slice(0, 120), size: Number(item.size) || 0 })).filter((item) => item.name && /^\/uploads\/ai\/[a-zA-Z0-9._-]+$/.test(item.url) && item.size >= 0 && item.size <= 10 * 1024 * 1024)
+      const attachments = rawAttachments.slice(0, 5).map((item) => ({ name: String(item.name || '').slice(0, 255), url: String(item.url || '').slice(0, 500), originalUrl: item.originalUrl ? String(item.originalUrl).slice(0, 500) : undefined, mime: String(item.mime || '').slice(0, 120), size: Number(item.size) || 0 })).filter((item) => item.name && /^\/uploads\/ai\/[a-zA-Z0-9._-]+$/.test(item.url) && (!item.originalUrl || /^\/uploads\/ai\/[a-zA-Z0-9._-]+$/.test(item.originalUrl)) && item.size >= 0 && item.size <= 10 * 1024 * 1024)
       if (!content && !attachments.length) throw failure('消息内容不能为空')
       const skill = String(body.skill || '').trim().slice(0, 80)
       const knowledgeBaseId = Number(body.knowledgeBaseId) || null

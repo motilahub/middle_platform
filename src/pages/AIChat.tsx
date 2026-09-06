@@ -1,15 +1,83 @@
-import { AudioOutlined, DeleteOutlined, FileAddOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PaperClipOutlined, PlusOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons'
-import { App, Button, Form, Image, Input, Layout, Modal, Select, Space, Spin, Typography, type UploadFile } from 'antd'
+import { DeleteOutlined, FileAddOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PaperClipOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons'
+import { App, Button, Drawer, Form, Image, Input, Layout, Select, Space, Spin, Typography, type UploadFile } from 'antd'
 import { Attachments, Bubble, Conversations, Prompts, Sender, Suggestion, Welcome, type Conversation } from '@ant-design/x'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { aiApi } from '../platform/ai-assistant/api'
 import { AiAttachment, AiConversation, AiKnowledgeBase, AiMessage, AiSkill } from '../platform/ai-assistant/types'
 import type { User } from '../types'
 import { useAuth } from '../auth'
 import { useSystemSettings } from '../system-settings'
+import UserMenu from '../platform/identity/UserMenu'
 
 type BubbleItem = NonNullable<React.ComponentProps<typeof Bubble.List>['items']>[number]
+
+const STARTER_PROMPTS = [
+  '帮我梳理今天最重要的三件事',
+  '为我制定一个可执行的学习计划',
+  '把一段复杂内容解释得简单一点',
+  '帮我写一封专业、简洁的邮件',
+  '分析一个问题时应该从哪些角度入手',
+  '给我几个提升工作效率的实用建议',
+  '帮我把想法整理成清晰的提纲',
+  '如何快速入门一个新的技术领域',
+  '帮我比较两个方案的优缺点',
+  '为一个新项目列出启动清单',
+  '如何把目标拆解成可衡量的结果',
+  '帮我准备一次重要的汇报',
+]
+
+function pickRandom(items: string[], count: number) {
+  if (count <= 0) return []
+  const shuffled = [...items]
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1))
+    const current = shuffled[index]
+    shuffled[index] = shuffled[swapIndex]
+    shuffled[swapIndex] = current
+  }
+  return shuffled.slice(0, count)
+}
+
+function getFollowupSuggestions(messages: AiMessage[], count: number) {
+  if (count <= 0) return []
+  const latest = [...messages].reverse().find((item) => item.content.trim() && item.status !== 'failed')
+  if (!latest) return []
+  const text = latest.content.replace(/\s+/g, ' ').trim()
+  const excerpt = text.length > 24 ? `${text.slice(0, 24)}…` : text
+  const suggestions = text.match(/计划|方案|步骤|安排/) ? [
+    '请把这个方案拆成具体步骤',
+    '这个计划有哪些风险和依赖',
+    '帮我补充一个时间表和优先级',
+    '这个方案还可以怎样简化',
+    '请给出验证方案是否有效的指标',
+  ] : text.match(/代码|接口|程序|开发|技术/) ? [
+    '请给出一个最小可运行示例',
+    '这个实现有哪些边界情况',
+    '帮我列一份针对它的测试清单',
+    '如何提升这段实现的可维护性',
+    '这个接口需要如何处理异常',
+  ] : text.match(/数据|报表|指标|分析/) ? [
+    '请指出最值得关注的关键指标',
+    '这些数据可能有哪些异常原因',
+    '如何把结果做成清晰的可视化',
+    '请给出进一步分析的切入点',
+    '哪些结论还需要更多数据验证',
+  ] : text.match(/总结|文档|报告|结论/) ? [
+    '请提炼成三条核心结论',
+    '帮我整理成可执行的行动清单',
+    '还有哪些问题需要进一步确认',
+    '请把这份内容改写得更简洁',
+    '帮我拟一个适合分享的标题',
+  ] : [
+    `围绕“${excerpt}”继续展开`,
+    '请给出一个具体例子',
+    '请整理成可执行的清单',
+    '这个话题还有哪些容易忽略的地方',
+    '请从另一个角度重新分析',
+  ]
+  return suggestions.slice(0, count)
+}
 
 function toBubbleItems(messages: AiMessage[], user: User | null, robotIcon: string): BubbleItem[] {
   return messages.map((message) => ({
@@ -18,7 +86,7 @@ function toBubbleItems(messages: AiMessage[], user: User | null, robotIcon: stri
     placement: message.role === 'user' ? 'end' : 'start',
     content: <div className="ai-message-content">
       {message.content || (message.status === 'pending' ? '正在生成…' : message.errorMessage || '未返回内容')}
-      {message.attachments?.length ? <div className="ai-message-attachments">{message.attachments.map((attachment) => attachment.mime.startsWith('image/') ? <Image key={attachment.url} src={attachment.url} alt={attachment.name} width={96} height={72} preview /> : <Typography.Link key={attachment.url} href={attachment.url} target="_blank" rel="noreferrer">{attachment.name}</Typography.Link>)}</div> : null}
+      {message.attachments?.length ? <div className="ai-message-attachments">{message.attachments.map((attachment) => attachment.mime.startsWith('image/') ? <a key={attachment.url} href={attachment.originalUrl || attachment.url} download={attachment.name} title="下载原图"><Image src={attachment.url} alt={attachment.name} width={96} height={72} preview={{ src: attachment.originalUrl || attachment.url }} /></a> : <Typography.Link key={attachment.url} href={attachment.originalUrl || attachment.url} target="_blank" rel="noreferrer">{attachment.name}</Typography.Link>)}</div> : null}
     </div>,
     loading: message.status === 'pending' && !message.content,
     typing: message.status === 'pending' && !!message.content,
@@ -30,8 +98,9 @@ function toBubbleItems(messages: AiMessage[], user: User | null, robotIcon: stri
 }
 
 export default function AIChat() {
-  const { user } = useAuth()
-  const { settings, defaultLogo } = useSystemSettings()
+  const { user, logout, can } = useAuth()
+  const { settings, defaultLogo: fallbackLogo } = useSystemSettings()
+  const defaultLogo = settings.systemLogo || fallbackLogo
   const { message, modal } = App.useApp()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 640)
@@ -50,8 +119,8 @@ export default function AIChat() {
   const [sending, setSending] = useState(false)
   const [knowledgeModalOpen, setKnowledgeModalOpen] = useState(false)
   const [knowledgeForm] = Form.useForm<{ name: string; description?: string; title?: string; content?: string }>()
-
-  const activeConversation = conversations.find((conversation) => conversation.id === activeId)
+  const abortRef = useRef<AbortController | null>(null)
+  const assistantRef = useRef<number | null>(null)
 
   const loadConversation = useCallback(async (id: number) => {
     setActiveId(id)
@@ -67,10 +136,10 @@ export default function AIChat() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [conversationList, agentList, skillList] = await Promise.all([aiApi.conversations(), aiApi.agents(), aiApi.skills()])
+      const [conversationList, agentList, skillList, knowledgeBaseList] = await Promise.all([aiApi.conversations(), aiApi.agents(), aiApi.skills(), aiApi.knowledgeBases()])
       setConversations(conversationList)
       setAgents(agentList)
-      setKnowledgeBases([])
+      setKnowledgeBases(knowledgeBaseList)
       setSkills(skillList)
       if (conversationList.length) await loadConversation(conversationList[0].id)
       else setActiveId(null)
@@ -173,28 +242,53 @@ export default function AIChat() {
     setSending(true)
     const temporaryUserId = -Date.now()
     const temporaryAssistantId = temporaryUserId - 1
+    const abortController = new AbortController()
+    abortRef.current = abortController
+    assistantRef.current = temporaryAssistantId
     setMessages((current) => [...current, { id: temporaryUserId, conversationId, role: 'user', content, attachments, status: 'completed', createdAt: new Date().toISOString() }, { id: temporaryAssistantId, conversationId, role: 'assistant', content: '', status: 'pending', createdAt: new Date().toISOString() }])
     try {
-      const response = await aiApi.sendMessage(conversationId, { content, agentId: selectedAgentId, attachments, skill: selectedSkill, knowledgeBaseId: selectedKnowledgeBaseId })
+      const response = await aiApi.sendMessage(conversationId, { content, agentId: selectedAgentId, attachments, skill: selectedSkill, knowledgeBaseId: selectedKnowledgeBaseId }, abortController.signal)
       await parseStream(response, temporaryAssistantId)
       const [updatedMessages, updatedConversation] = await Promise.all([aiApi.messages(conversationId), aiApi.conversation(conversationId)])
       setMessages(updatedMessages)
       setConversations((current) => current.map((item) => item.id === conversationId ? updatedConversation : item))
     } catch (error) {
+      if (abortController.signal.aborted) {
+        setMessages((current) => current.map((item) => item.id === temporaryAssistantId ? { ...item, status: 'failed', errorMessage: '已停止生成' } : item))
+        return
+      }
       setMessages((current) => current.map((item) => item.id === temporaryAssistantId ? { ...item, status: 'failed', errorMessage: (error as Error).message, content: '' } : item))
       message.error((error as Error).message)
-    } finally { setSending(false) }
+    } finally { if (abortRef.current === abortController) abortRef.current = null; if (assistantRef.current === temporaryAssistantId) assistantRef.current = null; setSending(false) }
   }
+
+  const cancelGeneration = () => { abortRef.current?.abort(); const assistantId = assistantRef.current; if (assistantId) setMessages((current) => current.map((item) => item.id === assistantId ? { ...item, status: 'failed', errorMessage: '已停止生成' } : item)) }
 
   const conversationItems: Conversation[] = useMemo(() => conversations.map((conversation) => ({ key: String(conversation.id), label: conversation.title, timestamp: new Date(conversation.updatedAt).getTime() })), [conversations])
   const robotIcon = settings.aiChatRobotIcon || defaultLogo
   const bubbleItems = toBubbleItems(messages, user, robotIcon)
-  const activeAgent = agents.find((agent) => agent.id === selectedAgentId)
-  const promptSuggestions = ['请帮我总结这段内容', '帮我制定一个执行计划', '解释一下这个问题']
-  const mention = input.match(/(?:^|\s)@([^\s]*)$/)?.[1] || ''
-  const mentionItems = [...attachmentItems.map((item) => ({ value: `file:${item.name}`, label: `文件：${item.name}`, icon: <FileAddOutlined /> })), ...agents.map((agent) => ({ value: `agent:${agent.id}`, label: `智能体：${agent.name}`, icon: <RobotOutlined />, extra: agent.description })), ...skills.map((skill) => ({ value: `skill:${skill.key}`, label: `Skill：${skill.name}`, icon: <RobotOutlined />, extra: skill.description }))]
-  const selectMention = (value: string) => { const agent = value.startsWith('agent:') ? agents.find((item) => `agent:${item.id}` === value) : undefined; const target = value.startsWith('skill:') ? skills.find((skill) => `skill:${skill.key}` === value) : undefined; if (agent) setSelectedAgentId(agent.id); if (target) setSelectedSkill(target.key); setInput(input.replace(/(?:^|\s)@([^\s]*)$/, (match) => `${match.startsWith(' ') ? ' ' : ''}@${agent?.name || target?.name || value.replace('file:', '')} `)) }
-  const composer = <Suggestion open={/(?:^|\s)@[^\s]*$/.test(input) && mentionItems.length > 0} items={mentionItems} onSelect={selectMention}>{({ onKeyDown }) => <Sender value={input} onChange={setInput} onKeyDown={onKeyDown} onSubmit={(value) => { void send(value) }} loading={sending} disabled={!agents.length} submitType="enter" placeholder={agents.length ? '输入消息，@ 文件、智能体或 Skill' : '请先配置智能体'} allowSpeech actions={(_origin, { components: { SpeechButton, SendButton, LoadingButton } }) => <Space size={4}><Attachments className="ai-inline-attachments" accept="*" maxCount={5} items={attachmentItems} beforeUpload={validateAttachment} onChange={({ fileList }) => setAttachmentItems(fileList)}><Button type="text" size="small" icon={<PaperClipOutlined />} aria-label="添加附件" /></Attachments><SpeechButton />{sending ? <LoadingButton /> : <SendButton />}</Space>} autoSize={{ minRows: 2, maxRows: 6 }} />}</Suggestion>
+  const starterPromptSuggestions = useMemo(
+    () => pickRandom(STARTER_PROMPTS, settings.aiChatFirstPromptCount || 0),
+    [activeId, settings.aiChatFirstPromptCount],
+  )
+  const followupPromptSuggestions = useMemo(
+    () => getFollowupSuggestions(messages, settings.aiChatFollowupCount || 0),
+    [messages, settings.aiChatFollowupCount],
+  )
+  const mentionMatch = input.match(/(?:^|\s)([@/])([^\s]*)$/)
+  const mentionTrigger = mentionMatch?.[1]
+  const mentionQuery = mentionMatch?.[2]?.toLowerCase() || ''
+  const mentionItems = (mentionTrigger === '/' ? skills.map((skill) => ({ value: `skill:${skill.key}`, label: `/${skill.name}`, icon: <RobotOutlined />, extra: skill.description })) : [
+    ...attachmentItems.map((item) => ({ value: `file:${item.name}`, label: `文件：${item.name}`, icon: <FileAddOutlined /> })),
+    ...knowledgeBases.map((knowledgeBase) => ({ value: `knowledge:${knowledgeBase.id}`, label: `知识库：${knowledgeBase.name}`, icon: <FileAddOutlined />, extra: knowledgeBase.description })),
+    ...agents.map((agent) => ({ value: `agent:${agent.id}`, label: `智能体：${agent.name}`, icon: <RobotOutlined />, extra: agent.description })),
+  ]).filter((item) => !mentionQuery || item.label.toLowerCase().includes(mentionQuery))
+  const selectMention = (value: string) => { const agent = value.startsWith('agent:') ? agents.find((item) => `agent:${item.id}` === value) : undefined; const target = value.startsWith('skill:') ? skills.find((skill) => `skill:${skill.key}` === value) : undefined; const knowledgeBase = value.startsWith('knowledge:') ? knowledgeBases.find((item) => `knowledge:${item.id}` === value) : undefined; if (agent) setSelectedAgentId(agent.id); if (target) setSelectedSkill(target.key); if (knowledgeBase) setSelectedKnowledgeBaseId(knowledgeBase.id); const label = agent?.name || target?.name || knowledgeBase?.name || value.replace('file:', ''); setInput(input.replace(/(?:^|\s)([@/])([^\s]*)$/, (match) => `${match.startsWith(' ') ? ' ' : ''}${match.trimStart().startsWith('/') ? '/' : '@'}${label} `)) }
+  const validateAttachment = (file: UploadFile) => {
+    if ((file.size || 0) > 10 * 1024 * 1024) { message.error(`${file.name} 超过 10MB`); return false }
+    return false
+  }
+  const composer = <Suggestion open={Boolean(mentionTrigger) && mentionItems.length > 0} items={mentionItems} onSelect={selectMention}>{({ onKeyDown }) => <Sender value={input} onChange={setInput} onKeyDown={onKeyDown} onSubmit={(value) => { void send(value) }} onCancel={cancelGeneration} loading={sending} disabled={!agents.length} submitType="enter" placeholder={agents.length ? '输入消息，@ 知识库、文件或智能体，/ 搜索 Skill' : '请先配置智能体'} allowSpeech footer={() => <div className="ai-composer-tools"><Space.Compact className="ai-knowledge-tools"><Select aria-label="知识库" className="ai-knowledge-select" allowClear disabled={!knowledgeBases.length} value={selectedKnowledgeBaseId} placeholder="知识库（可选）" options={knowledgeBases.map((item) => ({ value: item.id, label: item.name }))} onChange={setSelectedKnowledgeBaseId} /></Space.Compact><Select aria-label="智能体" className="ai-agent-select" value={selectedAgentId} placeholder="选择智能体" options={agents.map((agent) => ({ value: agent.id, label: `${agent.name}${agent.isDefault ? '（默认）' : ''}`, disabled: !agent.enabled }))} onChange={setSelectedAgentId} /></div>} actions={(_origin, { components: { SpeechButton, SendButton, LoadingButton } }) => <Space size={4} align="center"><Attachments className="ai-inline-attachments" accept="*" maxCount={5} items={attachmentItems} beforeUpload={validateAttachment} onChange={({ fileList }) => setAttachmentItems(fileList)}><Button type="text" size="small" icon={<PaperClipOutlined />} aria-label="添加附件" /></Attachments><SpeechButton />{sending ? <LoadingButton /> : <SendButton />}</Space>} autoSize={{ minRows: 2, maxRows: 6 }} />}</Suggestion>
 
   const saveKnowledgeBase = async () => {
     try {
@@ -209,18 +303,21 @@ export default function AIChat() {
     } catch (error) { if (!(error as { errorFields?: unknown }).errorFields) message.error((error as Error).message) }
   }
 
-  const validateAttachment = (file: UploadFile) => {
-    if ((file.size || 0) > 10 * 1024 * 1024) { message.error(`${file.name} 超过 10MB`); return false }
-    return false
-  }
-
   if (loading) return <div className="route-loading"><Spin size="large" /></div>
-  const followupPrompts = promptSuggestions.slice(0, settings.aiChatFollowupCount || 0).map((label, index) => ({ key: `followup-${index}`, label }))
+  const followupPrompts = followupPromptSuggestions.map((label, index) => ({ key: `followup-${index}`, label: <span title={label}>{label}</span> }))
+  const starterPrompts = starterPromptSuggestions.map((label, index) => ({ key: `starter-${index}`, label: <span title={label}>{label}</span> }))
   const theme = settings.aiChatTheme || 'light'
   const effectsClass = settings.aiChatEffects ? 'ai-effects-enabled' : 'ai-effects-disabled'
-  return <Layout className={`ai-chat-page ai-theme-${theme} ${effectsClass} ${collapsed ? 'ai-chat-collapsed' : 'ai-chat-expanded'}`}>
-    <button type="button" className="ai-chat-brand" onClick={() => navigate('/')} aria-label="返回首页"><img src={defaultLogo} alt="" /><strong>AI 对话</strong></button>
-    {!collapsed && <><div className="ai-chat-sider-mask" role="presentation" onClick={() => setCollapsed(true)} /><Layout.Sider width={280} theme="light" className="ai-chat-sider"><div className="ai-chat-sider-head"><Typography.Title level={4}>AI 对话</Typography.Title><Button type="primary" icon={<PlusOutlined />} onClick={createConversation}>新会话</Button></div><Conversations items={conversationItems} activeKey={activeId ? String(activeId) : undefined} onActiveChange={(key) => { void loadConversation(Number(key)); if (window.innerWidth <= 640) setCollapsed(true) }} menu={(item) => ({ items: [{ key: 'delete', label: '删除会话', icon: <DeleteOutlined />, danger: true }], onClick: ({ key }) => { if (key === 'delete') { const conversation = conversations.find((value) => String(value.id) === item.key); if (conversation) deleteConversation(conversation) } } })} /></Layout.Sider></>}
-    <Layout className="ai-chat-main"><header className="ai-chat-header"><Button type="text" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={() => setCollapsed((value) => !value)} aria-label="切换会话栏" /><div className="ai-chat-title"><Typography.Title level={4}>{activeConversation?.title || '新会话'}</Typography.Title><Typography.Text type="secondary">对话内容仅对当前登录用户可见</Typography.Text></div><Button type="text" onClick={() => navigate('/')}>返回工作台</Button></header><main className="ai-chat-content">{messages.length ? <><Bubble.List items={bubbleItems} autoScroll />{followupPrompts.length > 0 && !sending && <Prompts items={followupPrompts} onItemClick={({ data }) => setInput(String(data.label || ''))} wrap />}</> : <div className="ai-welcome"><Welcome icon={settings.aiChatRobotIcon ? <img className="ai-welcome-icon" src={settings.aiChatRobotIcon} alt="AI" /> : <img className="ai-welcome-icon" src={defaultLogo} alt="AI" />} title={activeAgent?.name || settings.aiChatWelcome || '开始一段新的对话'} description={settings.aiChatWelcome || '发送文本、文件或语音输入，开始一段新的对话。'} /><Prompts items={promptSuggestions.slice(0, settings.aiChatFirstPromptCount || 0).map((label, index) => ({ key: String(index), label }))} onItemClick={({ data }) => setInput(String(data.label || ''))} wrap /></div>}</main><footer className="ai-chat-sender"><div className="ai-composer-input">{composer}</div><Typography.Text type="secondary" className="ai-composer-hint"><AudioOutlined /> 支持浏览器语音输入</Typography.Text><div className="ai-composer-tools"><Space.Compact className="ai-knowledge-tools"><Select aria-label="知识库" className="ai-knowledge-select" allowClear disabled={!knowledgeBases.length} value={selectedKnowledgeBaseId} placeholder="知识库（可选）" options={knowledgeBases.map((item) => ({ value: item.id, label: item.name }))} onChange={setSelectedKnowledgeBaseId} /><Button aria-label="新建知识库" icon={<PlusOutlined />} onClick={() => setKnowledgeModalOpen(true)} /></Space.Compact><Select aria-label="智能体" className="ai-agent-select" value={selectedAgentId} placeholder="选择智能体" options={agents.map((agent) => ({ value: agent.id, label: `${agent.name}${agent.isDefault ? '（默认）' : ''}`, disabled: !agent.enabled }))} onChange={setSelectedAgentId} /></div></footer><Modal title="新建知识库" open={knowledgeModalOpen} onOk={() => { void saveKnowledgeBase() }} onCancel={() => setKnowledgeModalOpen(false)} okText="创建" cancelText="取消"><Form form={knowledgeForm} layout="vertical"><Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入知识库名称' }]}><Input maxLength={120} /></Form.Item><Form.Item name="description" label="描述"><Input maxLength={500} /></Form.Item><Form.Item name="title" label="初始文档标题"><Input maxLength={200} /></Form.Item><Form.Item name="content" label="初始文档内容"><Input.TextArea rows={6} maxLength={200000} showCount /></Form.Item></Form></Modal></Layout>
+  return <Layout className={`ai-chat-page ai-theme-${theme} ${effectsClass} ${collapsed ? 'ai-chat-collapsed' : 'ai-chat-expanded'} ${settings.showAiChatHeader ? '' : 'ai-chat-header-hidden'}`} style={{ '--ai-brand-title': settings.systemTitle } as React.CSSProperties}>
+    {!collapsed && <><div className="ai-chat-sider-mask" role="presentation" onClick={() => setCollapsed(true)} /><Layout.Sider width={280} theme="light" className="ai-chat-sider"><div className="ai-chat-sider-head"><button type="button" className="ai-chat-brand" onClick={() => navigate('/')} aria-label="返回首页"><img src={defaultLogo} alt="" /><strong>{settings.systemTitle}</strong></button><Button type="primary" onClick={createConversation}>新会话</Button></div><Conversations items={conversationItems} activeKey={activeId ? String(activeId) : undefined} onActiveChange={(key) => { void loadConversation(Number(key)); if (window.innerWidth <= 640) setCollapsed(true) }} menu={(item) => ({ items: [{ key: 'delete', label: '删除会话', icon: <DeleteOutlined />, danger: true }], onClick: ({ key }) => { if (key === 'delete') { const conversation = conversations.find((value) => String(value.id) === item.key); if (conversation) deleteConversation(conversation) } } })} /></Layout.Sider></>}
+    <Layout className="ai-chat-main">
+      {settings.showAiChatHeader && <header className="ai-chat-header">
+        <Button type="text" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={() => setCollapsed((value) => !value)} aria-label="切换会话栏" />
+        {user && can('platform.app.read') && <Button type="text" onClick={() => navigate('/config/dashboard')}>控制台</Button>}
+        {user && <UserMenu user={user} onLogout={async () => { await logout(); navigate('/login', { replace: true }) }} />}
+      </header>}
+      <main className="ai-chat-content">{messages.length ? <><Bubble.List items={bubbleItems} autoScroll />{followupPrompts.length > 0 && !sending && <Prompts items={followupPrompts} onItemClick={({ data }) => setInput(followupPromptSuggestions[Number(data.key.replace('followup-', ''))] || '')} wrap />}</> : <div className="ai-welcome"><Welcome variant="borderless" description={settings.aiChatWelcome || '发送文本、文件或语音输入，开始一段新的对话。'} /><Prompts items={starterPrompts} onItemClick={({ data }) => setInput(starterPromptSuggestions[Number(data.key.replace('starter-', ''))] || '')} wrap /></div>}</main>
+      <div className="ai-chat-sender" role="region" aria-label="聊天输入区"><div className="ai-composer-input">{composer}</div></div><Drawer title="新建知识库" width={480} open={knowledgeModalOpen} onClose={() => setKnowledgeModalOpen(false)} destroyOnClose extra={<Space><Button onClick={() => setKnowledgeModalOpen(false)}>取消</Button><Button type="primary" onClick={() => { void saveKnowledgeBase() }}>创建</Button></Space>}><Form form={knowledgeForm} layout="vertical"><Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入知识库名称' }]}><Input maxLength={120} /></Form.Item><Form.Item name="description" label="描述"><Input maxLength={500} /></Form.Item><Form.Item name="title" label="初始文档标题"><Input maxLength={200} /></Form.Item><Form.Item name="content" label="初始文档内容"><Input.TextArea rows={6} maxLength={200000} showCount /></Form.Item></Form></Drawer>
+    </Layout>
   </Layout>
 }

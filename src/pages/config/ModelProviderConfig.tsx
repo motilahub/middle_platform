@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { App, Button, Drawer, Form, Input, Popconfirm, Select, Space, Switch, Table, Tag, Tooltip, Typography } from 'antd'
-import { ApiOutlined, CloudSyncOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { ApiOutlined, CloudSyncOutlined } from '@ant-design/icons'
 import { useAuth } from '../../auth'
 import { modelProviderApi } from '../../platform/model-providers/api'
 import type { ModelProvider, ModelVendor } from '../../platform/model-providers/types'
@@ -100,9 +100,9 @@ export default function ModelProviderConfig() {
   const filteredRows = rows.filter((row) => `${row.code} ${row.name} ${vendorLabel(row.vendor)} ${row.baseUrl}`.toLowerCase().includes(keyword.trim().toLowerCase()))
 
   return <div>
-    <div className="page-title"><div><Typography.Title level={3}>模型供应商</Typography.Title><Typography.Text type="secondary">维护大模型服务连接、可用模型和默认模型</Typography.Text></div><Space>{can('platform.model_provider.unlink') && <Button danger icon={<DeleteOutlined />} disabled={!checked.length} onClick={() => void batchDelete()}>删除选中</Button>}{can('platform.model_provider.create') && <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建</Button>}</Space></div>
+    <div className="page-title"><div><Typography.Title level={3}>模型供应商</Typography.Title><Typography.Text type="secondary">维护大模型服务连接、可用模型和默认模型</Typography.Text></div><Space>{can('platform.model_provider.unlink') && <Button danger disabled={!checked.length} onClick={() => void batchDelete()}>删除选中</Button>}{can('platform.model_provider.create') && <Button type="primary" onClick={openCreate}>新建</Button>}</Space></div>
     <Input.Search className="list-filter" allowClear placeholder="筛选编码、名称、厂商或服务地址" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage((value) => ({ ...value, current: 1 })) }} />
-    <Table className="config-table" loading={loading} rowKey="id" columns={columns} dataSource={filteredRows} scroll={{ x: 1700 }} rowSelection={{ selectedRowKeys: checked, preserveSelectedRowKeys: true, onChange: (keys) => setChecked(keys as number[]) }} pagination={{ current: page.current, pageSize: page.pageSize, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: (total) => `共 ${total} 条`, onChange: (current, pageSize) => setPage({ current, pageSize }) }} onRow={(record) => ({ onClick: (event) => { if ((event.target as HTMLElement).closest('button,.ant-popover,.ant-switch,.ant-checkbox-wrapper')) return; openEdit(record) } })} />
+    <Table className="config-table" loading={loading} rowKey="id" columns={columns} dataSource={filteredRows} scroll={{ x: 1700 }} rowSelection={{ selectedRowKeys: checked, preserveSelectedRowKeys: true, onChange: (keys) => setChecked(keys as number[]), getCheckboxProps: () => ({ disabled: !can('platform.model_provider.unlink') }) }} pagination={{ current: page.current, pageSize: page.pageSize, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: (total) => `共 ${total} 条`, onChange: (current, pageSize) => setPage({ current, pageSize }) }} onRow={(record) => ({ onClick: (event) => { if ((event.target as HTMLElement).closest('button,.ant-popover,.ant-switch,.ant-checkbox-wrapper')) return; openEdit(record) } })} />
     <Drawer title={selected ? '编辑模型供应商' : '新建模型供应商'} width={520} open={drawer} onClose={() => setDrawer(false)} destroyOnClose extra={<Button type="primary" onClick={() => form.submit()}>保存</Button>}>
       <Form form={form} layout="vertical" onFinish={(values) => void save(values)}>
         <Form.Item name="code" label="编码" rules={[{ required: true, message: '请输入编码' }, { pattern: /^[a-z][a-z0-9_-]{2,79}$/, message: '使用 3-80 位小写字母、数字、下划线或短横线' }]}><Input disabled={!!selected} placeholder="例如 openai_main" /></Form.Item>

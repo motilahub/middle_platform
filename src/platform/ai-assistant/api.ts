@@ -18,5 +18,5 @@ export const aiApi = {
   conversation: (id: number) => request<AiConversation>(`/api/ai/conversations/${id}`),
   deleteConversation: (id: number) => request<void>(`/api/ai/conversations/${id}`, { method: 'DELETE' }),
   messages: (id: number) => request<AiMessage[]>(`/api/ai/conversations/${id}/messages`),
-  sendMessage: (id: number, body: { content: string; agentId?: number; attachments?: AiAttachment[]; skill?: string; knowledgeBaseId?: number }) => requestStream(`/api/ai/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify(body) }),
+  sendMessage: (id: number, body: { content: string; agentId?: number; attachments?: AiAttachment[]; skill?: string; knowledgeBaseId?: number }, signal?: AbortSignal) => requestStream(`/api/ai/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify(body), signal }),
 }

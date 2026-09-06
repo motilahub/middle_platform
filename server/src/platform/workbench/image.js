@@ -3,6 +3,16 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import sharp from 'sharp'
 
+async function compressedThumbnail(buffer) {
+  for (const size of [320, 256, 192]) {
+    for (const quality of [82, 70, 58, 46, 34]) {
+      const output = await sharp(buffer).resize(size, size, { fit: 'cover' }).webp({ quality }).toBuffer()
+      if (output.length <= 100 * 1024) return output
+    }
+  }
+  return sharp(buffer).resize(160, 160, { fit: 'cover' }).webp({ quality: 28 }).toBuffer()
+}
+
 export function createWorkbenchImageStore(uploadRoot) {
   return {
     async persist(dataUrl, fileName, oldApp) {
@@ -16,7 +26,7 @@ export function createWorkbenchImageStore(uploadRoot) {
       const original = `/uploads/original/${stem}.${extension}`
       const thumbnail = `/uploads/thumbnail/${stem}.webp`
       await fs.writeFile(path.join(uploadRoot, original.replace('/uploads/', '')), buffer)
-      await sharp(buffer).resize(320, 320, { fit: 'cover' }).webp({ quality: 82 }).toFile(path.join(uploadRoot, thumbnail.replace('/uploads/', '')))
+      await fs.writeFile(path.join(uploadRoot, thumbnail.replace('/uploads/', '')), await compressedThumbnail(buffer))
       await this.remove(oldApp)
       return { original, thumbnail, filename: fileName || `icon.${extension}` }
     },
@@ -27,4 +37,3 @@ export function createWorkbenchImageStore(uploadRoot) {
     },
   }
 }
-

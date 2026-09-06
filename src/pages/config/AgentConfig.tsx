@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { App, Button, Drawer, Form, Input, Popconfirm, Select, Space, Switch, Table, Typography } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
 import { useAuth } from '../../auth'
 import { aiApi } from '../../platform/ai-assistant/api'
 import { modelProviderApi } from '../../platform/model-providers/api'
@@ -17,6 +16,8 @@ export default function AgentConfig() {
   const [selected, setSelected] = useState<AiAgent | null>(null)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [checked, setChecked] = useState<number[]>([])
+  const [keyword, setKeyword] = useState('')
   const [form] = Form.useForm<AgentForm>()
   const provider = Form.useWatch('modelProviderId', form)
   const availableModels = providers.find((item) => item.id === provider)?.models || []
@@ -34,7 +35,8 @@ export default function AgentConfig() {
     try { const { settingsText, ...agentValues } = values; const settings = JSON.parse(settingsText || '{}') as Record<string, unknown>; if (selected) await aiApi.updateAgent(selected.id, { ...agentValues, settings }); else await aiApi.createAgent({ ...agentValues, settings }); setOpen(false); await load(); message.success('保存成功') }
     catch (error) { message.error((error as Error).message) }
   }
-  const remove = async (agent: AiAgent) => { try { await aiApi.deleteAgent(agent.id); await load(); message.success('已删除') } catch (error) { message.error((error as Error).message) } }
+  const remove = async (agent: AiAgent) => { try { await aiApi.deleteAgent(agent.id); setChecked((ids) => ids.filter((id) => id !== agent.id)); await load(); message.success('已删除') } catch (error) { message.error((error as Error).message) } }
+  const batchDelete = async () => { try { await Promise.all(checked.map((id) => aiApi.deleteAgent(id))); setChecked([]); await load(); message.success('已删除选中智能体') } catch (error) { await load(); message.error((error as Error).message) } }
   const columns = useMemo(() => [
     { title: '编码', dataIndex: 'code', width: 180 },
     { title: '名称', dataIndex: 'name', width: 160 },
@@ -43,10 +45,12 @@ export default function AgentConfig() {
     { title: '默认', dataIndex: 'isDefault', width: 80, render: (value: boolean) => value ? '是' : '否' },
     { title: '操作', width: 160, render: (_: unknown, row: AiAgent) => <Space>{can('platform.ai_agent.write') && <Button type="link" onClick={() => edit(row)}>编辑</Button>}{can('platform.ai_agent.unlink') && <Popconfirm title={row.isDefault ? '默认智能体不可删除' : '确认删除该智能体？'} onConfirm={() => void remove(row)} disabled={row.isDefault}><Button type="link" danger disabled={row.isDefault}>删除</Button></Popconfirm>}</Space> },
   ], [can, providers])
+  const filteredAgents = agents.filter((agent) => `${agent.code} ${agent.name} ${agent.description || ''}`.toLowerCase().includes(keyword.trim().toLowerCase()))
 
   return <div>
-    <div className="page-title"><div><Typography.Title level={3}>智能体配置</Typography.Title><Typography.Text type="secondary">将模型、System Prompt 和通用参数封装为可选择的智能体</Typography.Text></div>{can('platform.ai_agent.create') && <Button type="primary" icon={<PlusOutlined />} onClick={create}>新建</Button>}</div>
-    <Table className="config-table" loading={loading} rowKey="id" columns={columns} dataSource={agents} scroll={{ x: 900 }} pagination={false} />
+    <div className="page-title"><div><Typography.Title level={3}>智能体配置</Typography.Title><Typography.Text type="secondary">将模型、System Prompt 和通用参数封装为可选择的智能体</Typography.Text></div><Space>{can('platform.ai_agent.unlink') && <Button danger disabled={!checked.length} onClick={() => void batchDelete()}>删除选中</Button>}{can('platform.ai_agent.create') && <Button type="primary" onClick={create}>新建</Button>}</Space></div>
+    <Input.Search className="list-filter" allowClear placeholder="筛选编码、名称或描述" value={keyword} onChange={(event) => setKeyword(event.target.value)} />
+    <Table className="config-table" loading={loading} rowKey="id" columns={columns} dataSource={filteredAgents} scroll={{ x: 900 }} rowSelection={{ selectedRowKeys: checked, onChange: (keys) => setChecked(keys as number[]), getCheckboxProps: (row) => ({ disabled: row.isDefault || !can('platform.ai_agent.unlink') }) }} pagination={{ pageSize: 20, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: (total) => `共 ${total} 条` }} />
     <Drawer title={selected ? '编辑智能体' : '新建智能体'} width={520} open={open} onClose={() => setOpen(false)} destroyOnClose extra={<Button type="primary" onClick={() => form.submit()}>保存</Button>}>
       <Form form={form} layout="vertical" onFinish={(values) => void save(values)}>
         <Form.Item name="code" label="编码" rules={[{ required: true, message: '请输入编码' }, { pattern: /^[a-z][a-z0-9_-]{2,79}$/, message: '使用 3-80 位小写字母、数字、下划线或短横线' }]}><Input disabled={!!selected} /></Form.Item>

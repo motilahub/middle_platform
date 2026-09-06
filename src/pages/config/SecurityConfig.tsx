@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { App, Button, Checkbox, Form, InputNumber, Spin, Typography } from 'antd'
-import { SaveOutlined } from '@ant-design/icons'
 import { api } from '../../api'
 import type { SecuritySettings } from '../../types'
 import { useAuth } from '../../auth'
@@ -26,7 +25,7 @@ export default function SecurityConfig() {
 
   if (loading) return <div className="route-loading"><Spin size="large" /></div>
   return <div>
-    <div className="page-title"><div><Typography.Title level={3}>系统安全</Typography.Title><Typography.Text type="secondary">维护接口访问频率与用户密码强度策略</Typography.Text></div><Button type="primary" disabled={!can('platform.settings.write')} icon={<SaveOutlined />} onClick={() => form.submit()}>保存</Button></div>
+    <div className="page-title"><div><Typography.Title level={3}>系统安全</Typography.Title><Typography.Text type="secondary">维护接口访问频率与用户密码强度策略</Typography.Text></div><Button type="primary" disabled={!can('platform.settings.write')} onClick={() => form.submit()}>保存</Button></div>
     <Form form={form} layout="vertical" onFinish={(values) => void save(values)} className="security-settings-form">
       <Typography.Title level={5}>接口频率限制</Typography.Title>
       <div className="security-setting-panel security-rate-panel"><Form.Item name="apiRateLimitPerMinute" label="每分钟接口请求次数" extra="按访问 IP 在滚动 60 秒内统计，超过限制会返回 429" rules={[{ required: true, message: '请输入每分钟请求次数' }]}><InputNumber min={1} max={10000} precision={0} style={{ width: '100%' }} addonAfter="次" /></Form.Item></div>
