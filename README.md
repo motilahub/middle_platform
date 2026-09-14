@@ -9,6 +9,7 @@
 - **系统配置**：维护系统名称、浏览器 Title、Logo、登录页文字、页脚备案和工作台 Header。首次初始化默认显示 Header。
 - **安全策略**：支持 API 访问频率限制、密码长度和字符组成策略；生产环境强制使用安全 Session 密钥。
 - **单点登录**：管理外部访入和内部访出配置，当前已实现 Ticket 认证处理器，并预留 OIDC、CAS、SAML 字段。
+- **天影查**：登录用户可按影视名称临时聚合全部搜索源，并按百度、夸克、UC、迅雷筛选结果；每类网盘独立获取结果，点击时按需解析并直达网盘，相同链接在短时间内复用解析结果。
 - **安全会话**：使用 PostgreSQL 服务端 Session、HttpOnly Cookie、CSRF Token 和基础安全响应头。
 - **离线部署**：可将前端、API、PostgreSQL 镜像和部署脚本打包为一个无需源码的部署归档。
 
@@ -117,11 +118,30 @@ conda run -n py312 python mock_sso/app.py
 (cd mock_sso && conda run -n py312 python -m unittest -v)
 ```
 
+## 天影查
+
+工作台内置“天影查”入口，对应 `/video-search`。搜索时默认使用全部搜索源和全部网盘类型，当前接入“天查”搜索源。搜索结果仅保存在当前页面，不写入数据库；点击结果后先进入链接获取过渡页，解析成功后自动打开网盘，网盘访问与文件流量不经过平台服务器。
+
+可通过环境变量调整搜索源地址、单次外部请求超时和结果上限：
+
+```bash
+PANSOU_BASE_URL=https://pansou.top
+VIDEO_SEARCH_TIMEOUT_MS=12000
+VIDEO_SEARCH_MAX_RESULTS=100
+VIDEO_SEARCH_RESOLVE_CACHE_TTL_MS=300000
+```
+
+`VIDEO_SEARCH_MAX_RESULTS` 是每种网盘类型的结果上限，默认每类最多 100 条；前端仍按每页 20 条展示。`VIDEO_SEARCH_RESOLVE_CACHE_TTL_MS` 是成功链接的进程内临时缓存时间，默认 5 分钟、最多保留 500 条，服务重启后自动清空且不会写入数据库。相同链接的并发解析会合并为一次第三方请求。
+
+搜索源接口属于第三方服务，部署方应在取得相应使用授权后启用，并自行确认搜索结果所指内容的使用权限。后续搜索源应通过 `server/src/modules/videoSearch/` 下的 Provider 接口接入。
+
 ## 项目结构
 
 ```text
 src/                         React 前端
+src/modules/videoSearch/     天影查页面与客户端接口
 server/src/                  Express API 与数据库初始化
+server/src/modules/videoSearch/ 天影查聚合、搜索源与临时令牌
 mock_sso/                    本地 SSO 联调服务
 deployment/                  离线部署模板
 scripts/package-offline.sh   离线镜像打包脚本

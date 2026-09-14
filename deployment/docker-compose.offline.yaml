@@ -26,6 +26,10 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set in .env}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       UPLOAD_DIR: /app/uploads
+      PANSOU_BASE_URL: ${PANSOU_BASE_URL:-https://pansou.top}
+      VIDEO_SEARCH_TIMEOUT_MS: ${VIDEO_SEARCH_TIMEOUT_MS:-12000}
+      VIDEO_SEARCH_MAX_RESULTS: ${VIDEO_SEARCH_MAX_RESULTS:-100}
+      VIDEO_SEARCH_RESOLVE_CACHE_TTL_MS: ${VIDEO_SEARCH_RESOLVE_CACHE_TTL_MS:-300000}
     volumes:
       - upload_data:/app/uploads
     depends_on:

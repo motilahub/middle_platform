@@ -7,6 +7,7 @@ import connectPgSimple from 'connect-pg-simple'
 import bcrypt from 'bcryptjs'
 import sharp from 'sharp'
 import { initDatabase, mapApp, mapSecuritySettings, mapSsoConfig, mapSystemSettings, mapUser, pool } from './db.js'
+import { createVideoSearchRouter } from './modules/videoSearch/index.js'
 
 const app = express()
 const port = Number(process.env.PORT || 3000)
@@ -73,6 +74,7 @@ app.get('/api/auth/csrf', (req, res) => {
 })
 app.use('/api', requireCsrf)
 app.use('/api', apiRateLimiter)
+app.use('/api/video-search', requireAuth, createVideoSearchRouter({ tokenSecret: sessionSecret }))
 
 app.post('/api/auth/login', asyncRoute(async (req, res) => {
   const result = await pool.query('SELECT * FROM users WHERE code=$1', [String(req.body.code || '').trim()])

@@ -89,6 +89,12 @@ export async function initDatabase() {
     await pool.query("SELECT setval(pg_get_serial_sequence('users','id'), GREATEST((SELECT MAX(id) FROM users), 1))")
   }
   await pool.query('INSERT INTO system_settings(id) VALUES(1) ON CONFLICT (id) DO NOTHING')
+  await pool.query(`
+    INSERT INTO dashboard_apps(code,name,priority,url,enabled)
+    VALUES('video_search','天影查',COALESCE((SELECT MAX(priority) + 1 FROM dashboard_apps),1),'/video-search',TRUE)
+    ON CONFLICT (code) DO UPDATE SET name='天影查', updated_at=NOW()
+    WHERE dashboard_apps.name='影视搜索'
+  `)
 }
 
 export function mapUser(row) {

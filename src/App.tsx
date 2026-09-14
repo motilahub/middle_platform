@@ -10,6 +10,7 @@ import UserConfig from './pages/config/UserConfig'
 import SsoConfig from './pages/config/SsoConfig'
 import BasicConfig from './pages/config/SystemSecurityConfig'
 import SecurityConfig from './pages/config/SecurityConfig'
+import { VideoOpeningPage, VideoSearchPage } from './modules/videoSearch'
 
 function Guard({ children, adminOnly = false }: { children: JSX.Element; adminOnly?: boolean }) {
   const { user, loading } = useAuth()
@@ -27,7 +28,9 @@ export default function App() {
   return <ConfigProvider locale={zhCN} theme={{ token: { colorPrimary: '#2563eb', borderRadius: 8 } }}><AntApp>
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/video-search/opening" element={<VideoOpeningPage />} />
       <Route path="/" element={<Guard><Workbench /></Guard>} />
+      <Route path="/video-search" element={<Guard><VideoSearchPage /></Guard>} />
       <Route path="/config" element={<Guard adminOnly><ConfigLayout onLogout={handleLogout} /></Guard>}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DashboardConfig />} />

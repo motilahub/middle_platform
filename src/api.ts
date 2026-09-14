@@ -21,6 +21,8 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   return body as T
 }
 
+export const apiRequest = request
+
 export const api = {
   login: (code: string, password: string) => request<User>('/api/auth/login', { method: 'POST', body: JSON.stringify({ code, password }) }),
   logout: async () => { try { return await request<void>('/api/auth/logout', { method: 'POST' }) } finally { csrfToken = undefined } },
