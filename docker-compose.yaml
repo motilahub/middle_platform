@@ -3,32 +3,37 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-oa_workbench}
-      POSTGRES_USER: ${POSTGRES_USER:-oa_workbench}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oa_workbench_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-middle_workbench}
+      POSTGRES_USER: ${POSTGRES_USER:-middle_workbench}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-middle_workbench_change_me}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-oa_workbench} -d ${POSTGRES_DB:-oa_workbench}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-middle_workbench} -d ${POSTGRES_DB:-middle_workbench}"]
       interval: 5s
       timeout: 5s
       retries: 20
 
   api:
+    image: middle-platform-api:latest
     build: ./server
     restart: unless-stopped
     environment:
       PORT: 3000
       NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-oa_workbench}:${POSTGRES_PASSWORD:-oa_workbench_change_me}@postgres:5432/${POSTGRES_DB:-oa_workbench}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-middle_workbench}:${POSTGRES_PASSWORD:-middle_workbench_change_me}@postgres:5432/${POSTGRES_DB:-middle_workbench}
       SESSION_SECRET: ${SESSION_SECRET:-replace-with-a-long-random-secret}
+      MODEL_PROVIDER_ENCRYPTION_KEY: ${MODEL_PROVIDER_ENCRYPTION_KEY:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      ENABLED_MODULES: ${ENABLED_MODULES:-video-search}
+      MODULES_DIR: /app/src/modules
       UPLOAD_DIR: /app/uploads
       PANSOU_BASE_URL: ${PANSOU_BASE_URL:-https://pansou.top}
       VIDEO_SEARCH_TIMEOUT_MS: ${VIDEO_SEARCH_TIMEOUT_MS:-12000}
       VIDEO_SEARCH_MAX_RESULTS: ${VIDEO_SEARCH_MAX_RESULTS:-100}
       VIDEO_SEARCH_RESOLVE_CACHE_TTL_MS: ${VIDEO_SEARCH_RESOLVE_CACHE_TTL_MS:-300000}
     volumes:
+      - ./server/src:/app/src:ro
       - upload_data:/app/uploads
     depends_on:
       postgres:
@@ -40,12 +45,19 @@ services:
       retries: 10
 
   web:
+    image: middle-platform-web:latest
     build:
       context: .
-      dockerfile: Dockerfile.web
+      dockerfile: Dockerfile.web.dev
     restart: unless-stopped
+    command: npm run dev -- --host 0.0.0.0
+    environment:
+      VITE_API_PROXY_TARGET: http://api:3000
     ports:
-      - "${WEB_PORT:-8080}:80"
+      - "${WEB_PORT:-8088}:5173"
+    volumes:
+      - .:/app
+      - web_node_modules:/app/node_modules
     depends_on:
       api:
         condition: service_healthy
@@ -53,3 +65,4 @@ services:
 volumes:
   postgres_data:
   upload_data:
+  web_node_modules:

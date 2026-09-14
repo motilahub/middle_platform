@@ -6,6 +6,7 @@ import './styles.css'
 import App from './App'
 import { AuthProvider } from './auth'
 import { SystemSettingsProvider } from './system-settings'
+import './modules/register'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

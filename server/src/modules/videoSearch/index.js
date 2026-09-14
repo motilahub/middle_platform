@@ -63,3 +63,29 @@ export function createVideoSearchRouter({ tokenSecret, providerOptions } = {}) {
 
   return router
 }
+
+export const manifest = {
+  key: 'video-search',
+  version: '1.0.0',
+  dependencies: ['platform.identity', 'platform.workbench'],
+  permissions: [],
+  enabledByDefault: true,
+}
+
+export function createModule({ requireAuth, sessionSecret }) {
+  const router = createVideoSearchRouter({ tokenSecret: sessionSecret })
+  return {
+    manifest,
+    async migrate({ pool }) {
+      await pool.query(`
+        INSERT INTO dashboard_apps(code,name,priority,url,enabled,visibility)
+        VALUES('video_search','天影查',COALESCE((SELECT MAX(priority) + 1 FROM dashboard_apps),1),'/video-search',TRUE,'public')
+        ON CONFLICT (code) DO UPDATE SET name='天影查', updated_at=NOW()
+        WHERE dashboard_apps.name='影视搜索'
+      `)
+    },
+    register(app) {
+      app.use('/api/video-search', requireAuth, router)
+    },
+  }
+}

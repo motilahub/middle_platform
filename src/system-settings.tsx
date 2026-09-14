@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { api } from './api'
 import type { SystemSettings } from './types'
-import defaultLogo from './images/logo.png'
+import defaultLogo from './images/logo.jpg'
 
 const defaults: SystemSettings = {
-  systemTitle: 'AI财务助手',
-  browserTitle: 'AI财务助手',
-  loginText: '后台配置系统',
+  systemTitle: '集成平台',
+  browserTitle: '集成平台',
+  loginText: '控制台',
   showWorkbenchHeader: true,
 }
 interface SystemSettingsValue { settings: SystemSettings; refresh: () => Promise<void>; update: (settings: SystemSettings) => void; defaultLogo: string }

@@ -32,7 +32,11 @@ pnpm-debug.log*
 
 # Editor and operating system files
 .DS_Store
+**/.DS_Store
 .idea/
 .vscode/
 *.swp
 *.swo
+
+# Generated offline deployment packages
+release/

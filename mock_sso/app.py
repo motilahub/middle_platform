@@ -1,4 +1,4 @@
-"""A small local OA SSO simulator for the AI Finance Assistant.
+"""A small local OA SSO simulator for Middle Platform.
 
 It issues a one-time ticket and redirects the browser to the portal login page.
 The portal calls POST /api/tickets/verify to exchange that ticket for a user.
@@ -19,7 +19,7 @@ from flask import Flask, Response, jsonify, redirect, request
 
 app = Flask(__name__)
 
-DEFAULT_TARGET_URL = "http://localhost:8080/login?ssoCode=mock_oa"
+DEFAULT_TARGET_URL = "http://localhost:8088/login?ssoCode=mock_oa"
 TICKET_TTL_SECONDS = int(os.getenv("SSO_TICKET_TTL_SECONDS", "10"))
 TARGET_URL = os.getenv("SSO_TARGET_URL", DEFAULT_TARGET_URL)
 

@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
+import { ssoApi } from '../platform/sso/api'
 import { useSystemSettings } from '../system-settings'
 
 function ssoRedirectPath(redirectUrl?: string) {
@@ -32,7 +33,7 @@ export default function Login() {
       await logout()
       if (!ssoCode) { message.error('未指定外部访入配置'); return }
       try {
-        const result = await api.exchangeSsoTicket(ssoCode, ticket)
+        const result = await ssoApi.exchangeTicket(ssoCode, ticket)
         await refresh()
         navigate(ssoRedirectPath(result.redirectUrl), { replace: true })
       } catch (error) { message.error((error as Error).message) }
