@@ -5,6 +5,8 @@ export interface User {
   uuid: string
   code: string
   name: string
+  avatar?: string | null
+  avatarOriginal?: string | null
   password?: string
   role: UserRole
   groups?: Array<{ code: string; name: string }>
@@ -29,11 +31,22 @@ export interface PermissionDefinition {
   name: string
 }
 
+export interface DashboardCategory {
+  id: number
+  code: string
+  name: string
+  priority: number
+}
+
 export interface DashboardApp {
   id: number
   code: string
   name: string
   priority: number
+  categoryId?: number
+  categoryCode?: string
+  categoryName?: string
+  categoryPriority?: number
   url: string
   img?: string
   imgThumbnail?: string
@@ -48,10 +61,21 @@ export interface SystemSettings {
   systemTitle: string
   browserTitle: string
   systemLogo?: string | null
+  systemLogoOriginal?: string | null
   titleLogo?: string | null
+  titleLogoOriginal?: string | null
   loginText: string
   footerRecord?: string
   showWorkbenchHeader: boolean
+  showAiChatHeader: boolean
+  aiChatWelcome: string
+  aiChatFirstPromptCount: number
+  aiChatMaxRounds: number
+  aiChatFollowupCount: number
+  aiChatRobotIcon?: string
+  aiChatRobotIconOriginal?: string
+  aiChatTheme: 'light' | 'dark' | 'nature'
+  aiChatEffects: boolean
   updatedAt?: string
 }
 

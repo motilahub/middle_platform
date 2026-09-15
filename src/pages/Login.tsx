@@ -6,6 +6,7 @@ import { api } from '../api'
 import { useAuth } from '../auth'
 import { ssoApi } from '../platform/sso/api'
 import { useSystemSettings } from '../system-settings'
+import { sanitizeHtml } from '../shared/sanitize-html'
 
 function ssoRedirectPath(redirectUrl?: string) {
   if (!redirectUrl) return '/'
@@ -52,5 +53,5 @@ export default function Login() {
       <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}><Input.Password size="large" prefix={<LockOutlined />} placeholder="密码" /></Form.Item>
       <Button type="primary" htmlType="submit" size="large" block>登录</Button>
     </Form>
-  </Card></div>{settings.footerRecord && <footer className="system-footer">{settings.footerRecord}</footer>}</main>
+  </Card></div>{settings.footerRecord && <footer className="system-footer" dangerouslySetInnerHTML={{ __html: sanitizeHtml(settings.footerRecord) }} />}</main>
 }

@@ -1,6 +1,10 @@
 export function registerWorkbenchRoutes(app, controller, { asyncRoute, requireAuth, requirePermission }) {
   app.get('/api/workbench/apps', asyncRoute(controller.visible))
   app.get('/api/me/apps', requireAuth, asyncRoute(controller.visible))
+  app.get('/api/admin/app-categories', requirePermission('platform.app.read'), asyncRoute(controller.categories))
+  app.post('/api/admin/app-categories', requirePermission('platform.app.create'), asyncRoute(controller.createCategory))
+  app.put('/api/admin/app-categories/:id', requirePermission('platform.app.write'), asyncRoute(controller.updateCategory))
+  app.delete('/api/admin/app-categories/:id', requirePermission('platform.app.unlink'), asyncRoute(controller.deleteCategory))
   app.get('/api/admin/apps', requirePermission('platform.app.read'), asyncRoute(controller.list))
   app.post('/api/admin/apps', requirePermission('platform.app.create'), asyncRoute(controller.create))
   app.put('/api/admin/apps/:id', requirePermission('platform.app.write'), asyncRoute(controller.update))

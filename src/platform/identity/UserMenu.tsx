@@ -1,6 +1,6 @@
-import { Descriptions, Dropdown, Modal, Button } from 'antd'
+import { Avatar, Button, Descriptions, Dropdown, Modal } from 'antd'
 import type { MenuProps } from 'antd'
-import { DownOutlined, InfoCircleOutlined, LogoutOutlined } from '@ant-design/icons'
+import { DownOutlined, InfoCircleOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons'
 import { useState } from 'react'
 import type { User } from '../../types'
 
@@ -31,7 +31,7 @@ export default function UserMenu({ user, onLogout }: UserMenuProps) {
   return <>
     <Dropdown menu={{ items, onClick: handleMenuClick }} trigger={['click']} placement="bottomRight">
       <Button type="text" className="user-menu-trigger" aria-label="打开用户菜单">
-        <span>{user.name}</span><DownOutlined />
+        <Avatar size="small" src={user.avatar || undefined} icon={<UserOutlined />} /><span>{user.name}</span><DownOutlined />
       </Button>
     </Dropdown>
     <Modal title="系统信息" open={systemInfoOpen} onCancel={() => setSystemInfoOpen(false)} footer={null} destroyOnClose>

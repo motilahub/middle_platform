@@ -44,3 +44,11 @@ test('model provider rejects unsafe custom service addresses', async () => {
   const service = createModelProviderService(createRepository(), cipher, { listModels: async () => [] })
   await assert.rejects(() => service.create({ code: 'custom_local', name: 'Local', vendor: 'custom', baseUrl: 'https://127.0.0.1:11434/v1', apiKey: 'example-key' }), /本地或私网/)
 })
+
+test('model provider accepts public HTTP service addresses', async () => {
+  const repository = createRepository()
+  const service = createModelProviderService(repository, cipher, { listModels: async () => [] })
+  const id = await service.create({ code: 'custom_http', name: 'HTTP service', vendor: 'custom', baseUrl: 'http://example.com/v1', apiKey: 'example-key' })
+  assert.equal(id, 1)
+  assert.equal((await service.list())[0].baseUrl, 'http://example.com/v1')
+})

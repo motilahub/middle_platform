@@ -5,12 +5,16 @@ import Login from '../pages/Login'
 import Workbench from '../pages/Workbench'
 import ConfigLayout from '../pages/config/ConfigLayout'
 import DashboardConfig from '../pages/config/DashboardConfig'
+import CategoryConfig from '../pages/config/CategoryConfig'
 import UserConfig from '../pages/config/UserConfig'
 import SsoConfig from '../pages/config/SsoConfig'
 import BasicConfig from '../pages/config/SystemSecurityConfig'
 import SecurityConfig from '../pages/config/SecurityConfig'
 import PermissionGroupConfig from '../pages/config/PermissionGroupConfig'
 import ModelProviderConfig from '../pages/config/ModelProviderConfig'
+import AgentConfig from '../pages/config/AgentConfig'
+import AIChatConfig from '../pages/config/AIChatConfig'
+import AIChat from '../pages/AIChat'
 import { getBusinessRouteElements } from '../modules/registry'
 
 function Guard({ children, adminOnly = false, requiredPermission, requiredAnyPermissions }: { children: JSX.Element; adminOnly?: boolean; requiredPermission?: string; requiredAnyPermissions?: string[] }) {
@@ -43,14 +47,18 @@ export default function AppRoutes() {
   return <Routes>
     <Route path="/login" element={<Login />} />
     <Route path="/" element={<Workbench />} />
-    <Route path="/config" element={<Guard requiredAnyPermissions={['platform.app.read', 'platform.user.read', 'platform.settings.read', 'platform.sso.read', 'platform.model_provider.read']}><ConfigLayout onLogout={handleLogout} /></Guard>}>
+    <Route path="/ai-chat" element={<Guard><AIChat /></Guard>} />
+    <Route path="/config" element={<Guard requiredAnyPermissions={['platform.app.read', 'platform.user.read', 'platform.settings.read', 'platform.sso.read', 'platform.model_provider.read', 'platform.ai_agent.read']}><ConfigLayout onLogout={handleLogout} /></Guard>}>
       <Route index element={<ConfigIndexRedirect />} />
       <Route path="dashboard" element={<Guard requiredPermission="platform.app.read"><DashboardConfig /></Guard>} />
+      <Route path="app-categories" element={<Guard requiredPermission="platform.app.read"><CategoryConfig /></Guard>} />
       <Route path="users" element={<Guard requiredPermission="platform.user.read"><UserConfig /></Guard>} />
       <Route path="permission-groups" element={<Guard requiredPermission="platform.permission.read"><PermissionGroupConfig /></Guard>} />
       <Route path="basic-config" element={<Guard requiredPermission="platform.settings.read"><BasicConfig /></Guard>} />
       <Route path="system-security" element={<Guard requiredPermission="platform.settings.read"><SecurityConfig /></Guard>} />
       <Route path="model-providers" element={<Guard requiredPermission="platform.model_provider.read"><ModelProviderConfig /></Guard>} />
+      <Route path="ai-agents" element={<Guard requiredPermission="platform.ai_agent.read"><AgentConfig /></Guard>} />
+      <Route path="ai-chat" element={<Guard requiredPermission="platform.settings.read"><AIChatConfig /></Guard>} />
       <Route path="sso/inbound" element={<Guard requiredPermission="platform.sso.read"><SsoConfig direction="inbound" /></Guard>} />
       <Route path="sso/outbound" element={<Guard requiredPermission="platform.sso.read"><SsoConfig direction="outbound" /></Guard>} />
     </Route>

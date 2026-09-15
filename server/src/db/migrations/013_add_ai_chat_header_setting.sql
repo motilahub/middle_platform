@@ -1,0 +1,2 @@
+ALTER TABLE system_settings
+  ADD COLUMN IF NOT EXISTS show_ai_chat_header BOOLEAN NOT NULL DEFAULT TRUE;

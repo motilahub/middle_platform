@@ -1,5 +1,10 @@
-const appSelect = `SELECT a.*, COALESCE(array_agg(au.user_id) FILTER (WHERE au.user_id IS NOT NULL), '{}') user_ids
-  FROM dashboard_apps a LEFT JOIN dashboard_app_users au ON au.app_id=a.id GROUP BY a.id`
+const appSelect = `SELECT a.*, c.code category_code, c.name category_name, c.priority category_priority,
+  COALESCE(array_agg(au.user_id) FILTER (WHERE au.user_id IS NOT NULL), '{}') user_ids
+  FROM dashboard_apps a
+  LEFT JOIN dashboard_categories c ON c.id=a.category_id
+  LEFT JOIN dashboard_app_users au ON au.app_id=a.id
+  GROUP BY a.id, c.id`
+const categorySelect = 'SELECT id, code, name, priority FROM dashboard_categories'
 
 export function createWorkbenchRepository(pool) {
   return {
@@ -9,15 +14,19 @@ export function createWorkbenchRepository(pool) {
           a.visibility='public'
           OR ($1::bigint IS NOT NULL AND $1=ANY(array_agg(au.user_id)))
         )
-        ORDER BY a.priority,a.id`, [userId || null]).then((result) => result.rows)
+        ORDER BY COALESCE(c.priority, 2147483647), c.id, a.priority, a.id`, [userId || null]).then((result) => result.rows)
     },
-    listAll() { return pool.query(`${appSelect} ORDER BY a.priority,a.id`).then((result) => result.rows) },
+    listAll() { return pool.query(`${appSelect} ORDER BY COALESCE(c.priority, 2147483647), c.id, a.priority, a.id`).then((result) => result.rows) },
+    listCategories() { return pool.query(`${categorySelect} ORDER BY priority,id`).then((result) => result.rows) },
     find(id) { return pool.query('SELECT * FROM dashboard_apps WHERE id=$1', [id]).then((result) => result.rows[0]) },
+    createCategory(values) { return pool.query('INSERT INTO dashboard_categories(code,name,priority) VALUES($1,$2,$3) RETURNING id', values).then((result) => Number(result.rows[0].id)) },
+    updateCategory(id, values) { return pool.query('UPDATE dashboard_categories SET code=$1,name=$2,priority=$3,updated_at=NOW() WHERE id=$4', [...values, id]) },
+    deleteCategory(id) { return pool.query('DELETE FROM dashboard_categories WHERE id=$1', [id]) },
     async create(values, userIds) {
       const client = await pool.connect()
       try {
         await client.query('BEGIN')
-        const result = await client.query('INSERT INTO dashboard_apps(code,name,priority,url,enabled,image_original,image_thumbnail,image_filename,outbound_sso_config_id,visibility) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id', values)
+        const result = await client.query('INSERT INTO dashboard_apps(code,name,priority,category_id,url,enabled,image_original,image_thumbnail,image_filename,outbound_sso_config_id,visibility) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id', values)
         await this.saveUsers(client, result.rows[0].id, userIds)
         await client.query('COMMIT')
         return Number(result.rows[0].id)
@@ -27,7 +36,7 @@ export function createWorkbenchRepository(pool) {
       const client = await pool.connect()
       try {
         await client.query('BEGIN')
-        await client.query('UPDATE dashboard_apps SET name=$1,priority=$2,url=$3,enabled=$4,image_original=$5,image_thumbnail=$6,image_filename=$7,outbound_sso_config_id=$8,visibility=$9,updated_at=NOW() WHERE id=$10', [...values, id])
+        await client.query('UPDATE dashboard_apps SET name=$1,priority=$2,category_id=$3,url=$4,enabled=$5,image_original=$6,image_thumbnail=$7,image_filename=$8,outbound_sso_config_id=$9,visibility=$10,updated_at=NOW() WHERE id=$11', [...values, id])
         await this.saveUsers(client, id, userIds)
         await client.query('COMMIT')
       } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }

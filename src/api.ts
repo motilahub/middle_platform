@@ -1,4 +1,4 @@
-import { DashboardApp, PermissionDefinition, PermissionGroup, SecuritySettings, SystemSettings, User } from './types'
+import { DashboardApp, DashboardCategory, PermissionDefinition, PermissionGroup, SecuritySettings, SystemSettings, User } from './types'
 import { clearCsrfToken, request } from './shared/api-client'
 
 export const apiRequest = request
@@ -7,12 +7,19 @@ export const api = {
   login: (code: string, password: string) => request<User>('/api/auth/login', { method: 'POST', body: JSON.stringify({ code, password }) }),
   logout: async () => { try { return await request<void>('/api/auth/logout', { method: 'POST' }) } finally { clearCsrfToken() } },
   me: () => request<User>('/api/auth/me'),
+  updateMyProfile: (profile: Pick<User, 'avatar'>) => request<User>('/api/auth/profile', { method: 'PUT', body: JSON.stringify(profile) }),
   systemSettings: () => request<SystemSettings>('/api/system/settings'),
   adminSystemSettings: () => request<SystemSettings>('/api/admin/system-settings'),
   updateSystemSettings: (settings: SystemSettings) => request<SystemSettings>('/api/admin/system-settings', { method: 'PUT', body: JSON.stringify(settings) }),
   adminSecuritySettings: () => request<SecuritySettings>('/api/admin/security-settings'),
   updateSecuritySettings: (settings: SecuritySettings) => request<SecuritySettings>('/api/admin/security-settings', { method: 'PUT', body: JSON.stringify(settings) }),
+  aiChatSettings: () => request<SystemSettings>('/api/admin/ai-chat-settings'),
+  updateAiChatSettings: (settings: Pick<SystemSettings, 'aiChatWelcome' | 'aiChatFirstPromptCount' | 'aiChatMaxRounds' | 'aiChatFollowupCount' | 'aiChatRobotIcon' | 'aiChatTheme' | 'aiChatEffects'>) => request<SystemSettings>('/api/admin/ai-chat-settings', { method: 'PUT', body: JSON.stringify(settings) }),
   visibleApps: () => request<DashboardApp[]>('/api/workbench/apps'),
+  adminCategories: () => request<DashboardCategory[]>('/api/admin/app-categories'),
+  createCategory: (category: Omit<DashboardCategory, 'id'>) => request<{ id: number }>('/api/admin/app-categories', { method: 'POST', body: JSON.stringify(category) }),
+  updateCategory: (id: number, category: Omit<DashboardCategory, 'id'>) => request<void>(`/api/admin/app-categories/${id}`, { method: 'PUT', body: JSON.stringify(category) }),
+  deleteCategory: (id: number) => request<void>(`/api/admin/app-categories/${id}`, { method: 'DELETE' }),
   adminApps: () => request<DashboardApp[]>('/api/admin/apps'),
   createApp: (app: Omit<DashboardApp, 'id'>) => request<{ id: number }>('/api/admin/apps', { method: 'POST', body: JSON.stringify(app) }),
   updateApp: (id: number, app: DashboardApp) => request<void>(`/api/admin/apps/${id}`, { method: 'PUT', body: JSON.stringify(app) }),
@@ -27,6 +34,6 @@ export const api = {
   updatePermissionGroup: (id: number, group: Omit<PermissionGroup, 'id'>) => request<void>(`/api/admin/permission-groups/${id}`, { method: 'PUT', body: JSON.stringify(group) }),
   deletePermissionGroup: (id: number) => request<void>(`/api/admin/permission-groups/${id}`, { method: 'DELETE' }),
   createUser: (user: Partial<User> & { password: string; groupIds?: number[] }) => request<User>('/api/admin/users', { method: 'POST', body: JSON.stringify(user) }),
-  updateUser: (id: number, user: Partial<User>) => request<void>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(user) }),
+  updateUser: (id: number, user: Partial<User>) => request<User>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(user) }),
   deleteUser: (id: number) => request<void>(`/api/admin/users/${id}`, { method: 'DELETE' }),
 }
