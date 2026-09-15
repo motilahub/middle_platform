@@ -79,6 +79,7 @@ const dependencies = {
   settingsModule,
   workbenchModule,
   modelProviderModule,
+  sessionSecret,
   pool,
 }
 

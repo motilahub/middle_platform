@@ -9,6 +9,7 @@
 - **系统配置**：维护系统名称、浏览器 Title、Logo、登录页文字、页脚备案和工作台 Header。首次初始化默认显示 Header。
 - **安全策略**：支持 API 访问频率限制、密码长度和字符组成策略；初始化默认每分钟 10000 次、最短密码 6 位且不强制字符组成；生产环境强制使用安全 Session 密钥。
 - **单点登录**：已实现 Ticket 外部访入和内部访出，支持一次性凭证、用户权限校验、目标系统客户端密钥及工作台应用关联，并预留 OIDC、CAS、SAML 字段。
+- **天影查**：登录用户可按影视名称临时聚合全部搜索源，并按百度、夸克、UC、迅雷筛选结果；点击时按需解析并直达网盘。
 - **安全会话**：使用 PostgreSQL 服务端 Session、HttpOnly Cookie、CSRF Token 和基础安全响应头。
 - **模型供应商**：支持维护 OpenAI、DeepSeek、通义千问、智谱 AI、硅基流动、Moonshot AI 及自定义 OpenAI 兼容服务；API Key 加密保存，可测试连接并同步可用模型。
 - **离线部署**：可将前端、API、PostgreSQL 镜像和部署脚本打包为一个无需源码的部署归档。
@@ -173,13 +174,30 @@ conda run -n py312 python app.py
 (cd mock_target_sso && conda run -n py312 python -m unittest -v)
 ```
 
+## 天影查
+
+工作台内置“天影查”入口，对应 `/video-search`。搜索时默认使用全部搜索源和全部网盘类型，当前接入“天查”搜索源。搜索结果仅保存在当前页面，不写入数据库；点击结果后先进入链接获取过渡页，解析成功后自动打开网盘，网盘访问与文件流量不经过平台服务器。
+
+该业务模块默认通过 `ENABLED_MODULES=video-search` 启用，可通过以下环境变量调整搜索源地址、单次外部请求超时、每种网盘的结果上限和解析缓存时间：
+
+```bash
+PANSOU_BASE_URL=https://pansou.top
+VIDEO_SEARCH_TIMEOUT_MS=12000
+VIDEO_SEARCH_MAX_RESULTS=100
+VIDEO_SEARCH_RESOLVE_CACHE_TTL_MS=300000
+```
+
+前端每页展示 20 条；成功链接在进程内临时缓存 5 分钟、最多 500 条，服务重启后自动清空且不会写入数据库。相同链接的并发解析会合并为一次第三方请求。搜索源接口属于第三方服务，部署方应在取得相应使用授权后启用，并自行确认搜索结果所指内容的使用权限。
+
 ## 项目结构
 
 ```text
 src/                         React 前端
+src/modules/videoSearch/     天影查页面、路由与客户端接口
 src/platform/sso/            SSO 前端类型与 API
 src/shared/                  前端共享请求能力
 server/src/                  Express API 与数据库初始化
+server/src/modules/videoSearch/ 天影查业务模块、搜索源与临时令牌
 server/src/platform/sso/     SSO 后端平台模块
 server/src/platform/identity/ 用户认证与用户管理
 server/src/platform/workbench/ 工作台应用与图标管理
@@ -205,7 +223,7 @@ server/Dockerfile            API 生产镜像
 
 新客户端通过公共请求层访问 `/api/v1`；服务端暂时保留 `/api` 兼容路径。平台基础表和增量变更由 `server/src/db/migrations/` 顺序迁移，禁止在业务入口中新增建表 DDL。
 
-业务模块通过 `ENABLED_MODULES` 按需加载，例如 `ENABLED_MODULES=education.sunny-class,finance`。模块放在 `server/src/modules/<module-key>/`，由 `server/src/bootstrap/module-loader.js` 发现、校验依赖、执行迁移并注册路由；未配置的业务模块不会加载。
+业务模块通过 `ENABLED_MODULES` 按需加载，例如 `ENABLED_MODULES=video-search,education.sunny-class,finance`。模块放在 `server/src/modules/<module-key>/`，由 `server/src/bootstrap/module-loader.js` 发现、校验依赖、执行迁移并注册路由；未配置的业务模块不会加载。
 
 业务模块可以在 manifest 中声明 `permissions`，模块加载阶段会注册权限码。例如 `education.student.read`、`education.student.write`；路由通过 `dependencies.requirePermission(code)` 校验，后续记录规则应由模块提供服务端 Domain 构造器。
 
