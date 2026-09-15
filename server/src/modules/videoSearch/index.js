@@ -72,7 +72,7 @@ export const manifest = {
   enabledByDefault: true,
 }
 
-export function createModule({ requireAuth, sessionSecret }) {
+export function createModule({ sessionSecret }) {
   const router = createVideoSearchRouter({ tokenSecret: sessionSecret })
   return {
     manifest,
@@ -85,7 +85,7 @@ export function createModule({ requireAuth, sessionSecret }) {
       `)
     },
     register(app) {
-      app.use('/api/video-search', requireAuth, router)
+      app.use('/api/video-search', router)
     },
   }
 }

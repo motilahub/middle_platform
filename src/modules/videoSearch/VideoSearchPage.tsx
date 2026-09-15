@@ -26,7 +26,7 @@ function SourceState({ source }: { source: VideoSearchSourceStatus }) {
 export default function VideoSearchPage() {
   const navigate = useNavigate()
   const { message } = App.useApp()
-  const { user, logout } = useAuth()
+  const { user, loading: authLoading, logout } = useAuth()
   const { settings, defaultLogo } = useSystemSettings()
   const [keyword, setKeyword] = useState('')
   const [results, setResults] = useState<VideoSearchResult[]>([])
@@ -108,7 +108,9 @@ export default function VideoSearchPage() {
   return <div className="video-search-page">
     <header className="video-search-header">
       <div className="video-search-header-left"><Button type="text" icon={<ArrowLeftOutlined />} title="返回工作台" onClick={() => navigate('/')} /><img className="brand-mark small" src={settings.systemLogo || defaultLogo} alt="" /><strong>{settings.systemTitle}</strong></div>
-      <Space size="middle"><Typography.Text>{user?.name}</Typography.Text><Button type="text" icon={<LogoutOutlined />} title="退出" onClick={() => void leave()} /></Space>
+      {!authLoading && (user
+        ? <Space size="middle"><Typography.Text>{user.name}</Typography.Text><Button type="text" icon={<LogoutOutlined />} title="退出" onClick={() => void leave()} /></Space>
+        : <Button type="text" onClick={() => navigate('/login')}>登录</Button>)}
     </header>
     <main className="video-search-main">
       <section className="video-search-toolbar">

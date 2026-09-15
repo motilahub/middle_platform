@@ -4,15 +4,16 @@ import { createModule, manifest } from './index.js'
 import { createPanSouProvider, isAllowedPanLink, parsePanSouDataLine } from './pansouProvider.js'
 import { createResolveToken, readResolveToken } from './token.js'
 
-test('天影查通过业务模块契约注册并迁移入口', async () => {
+test('天影查通过业务模块契约注册公开接口并迁移入口', async () => {
   const uses = []
   let migrationSql = ''
-  const module = createModule({ requireAuth: 'require-auth', sessionSecret: 'test-secret' })
+  const module = createModule({ sessionSecret: 'test-secret' })
   module.register({ use: (...args) => uses.push(args) })
   await module.migrate({ pool: { query: async (sql) => { migrationSql = sql } } })
   assert.equal(manifest.key, 'video-search')
   assert.equal(uses[0][0], '/api/video-search')
-  assert.equal(uses[0][1], 'require-auth')
+  assert.equal(uses[0].length, 2)
+  assert.notEqual(uses[0][1], 'require-auth')
   assert.match(migrationSql, /dashboard_apps/)
   assert.match(migrationSql, /天影查/)
 })
