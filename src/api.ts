@@ -1,6 +1,8 @@
 import { DashboardApp, DashboardCategory, PermissionDefinition, PermissionGroup, SecuritySettings, SystemSettings, User } from './types'
 import { clearCsrfToken, request } from './shared/api-client'
 
+export const apiRequest = request
+
 export const api = {
   login: (code: string, password: string) => request<User>('/api/auth/login', { method: 'POST', body: JSON.stringify({ code, password }) }),
   logout: async () => { try { return await request<void>('/api/auth/logout', { method: 'POST' }) } finally { clearCsrfToken() } },

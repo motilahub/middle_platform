@@ -80,6 +80,7 @@ const dependencies = {
   workbenchModule,
   modelProviderModule,
   uploadRoot,
+  sessionSecret,
   pool,
 }
 
