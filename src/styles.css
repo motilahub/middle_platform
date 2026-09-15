@@ -53,21 +53,26 @@
 
 /* Keep suggested questions compact and visually separated from the welcome copy. */
 .ai-chat-page .ant-prompts,
-.ai-chat-page .ant-x-prompts { width: 100%; gap: 10px; }
+.ai-chat-page .ant-x-prompts { width: 100%; min-width: 0; max-width: 100%; gap: 10px; overflow: hidden; }
 .ai-chat-page .ant-prompts .ant-prompts-list,
 .ai-chat-page .ant-x-prompts .ant-x-prompts-list {
   display: grid !important;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  overflow: visible !important;
+  overflow: hidden !important;
 }
 .ai-chat-page .ant-prompts .ant-prompts-item,
 .ai-chat-page .ant-x-prompts .ant-x-prompts-item {
   width: 100%;
   min-width: 0;
+  max-width: 100%;
   min-height: 30px;
   height: 30px;
   padding: 4px 10px;
+  overflow: hidden;
   line-height: 18px;
   border-color: color-mix(in srgb, var(--ai-accent) 20%, var(--ai-border));
   border-radius: 8px 8px 4px 8px;
@@ -83,7 +88,9 @@
 }
 .ai-chat-page .ant-prompts .ant-prompts-label,
 .ai-chat-page .ant-x-prompts .ant-x-prompts-label {
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   font-size: 12px;
   line-height: 18px;
@@ -95,12 +102,15 @@
 .ai-chat-page .ai-welcome > .ant-prompts,
 .ai-chat-page .ai-welcome > .ant-x-prompts { margin-top: 32px; }
 @media (max-width: 640px) {
+  .ai-chat-page .ai-welcome { width: 100%; min-width: 0; max-width: 100%; }
   .ai-chat-page .ant-prompts .ant-prompts-list,
   .ai-chat-page .ant-x-prompts .ant-x-prompts-list { gap: 6px; }
   .ai-chat-page .ant-prompts .ant-prompts-item,
   .ai-chat-page .ant-x-prompts .ant-x-prompts-item { min-height: 28px; height: 28px; padding: 3px 6px; }
   .ai-chat-page .ant-prompts .ant-prompts-label,
   .ai-chat-page .ant-x-prompts .ant-x-prompts-label { font-size: 11px; line-height: 16px; }
+  .ai-chat-page .ant-prompts .ant-prompts-item:hover,
+  .ai-chat-page .ant-x-prompts .ant-x-prompts-item:hover { transform: none; }
   .ai-chat-page .ai-welcome > .ant-prompts,
   .ai-chat-page .ai-welcome > .ant-x-prompts { margin-top: 28px; }
 }
