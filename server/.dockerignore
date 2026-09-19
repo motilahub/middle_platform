@@ -1,0 +1,17 @@
+# Dependencies and caches are installed inside the image.
+node_modules
+coverage
+*.log
+npm-debug.log*
+
+# Local configuration, runtime data, and editor metadata.
+.env
+.env.*
+!.env.example
+uploads
+.DS_Store
+**/.DS_Store
+
+# Unit tests and documentation are not required at runtime.
+**/*.test.js
+**/README.md

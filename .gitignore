@@ -6,6 +6,9 @@ server/node_modules/
 dist/
 *.tsbuildinfo
 
+# Runtime-generated uploads
+server/uploads/
+
 # Environment files and local secrets
 .env
 .env.*

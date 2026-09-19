@@ -1,16 +1,29 @@
+# Version control and local metadata
 .git
 .gitignore
 .DS_Store
+**/.DS_Store
+
+# Dependencies, caches, and build output
 node_modules
-server/node_modules
+**/node_modules
 dist
 release
+coverage
+*.tsbuildinfo
+*.log
+npm-debug.log*
+
+# Local configuration and runtime data
 .env
 .env.*
 !.env.example
-*.tsbuildinfo
-coverage
+server/uploads
+
+# Files not required by the web image
 mock_sso
+mock_target_sso
 deployment
+docs
 scripts
-npm-debug.log
+server
