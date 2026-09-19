@@ -29,7 +29,7 @@ services:
       MODULES_DIR: /app/src/modules
       UPLOAD_DIR: /app/uploads
       PANSOU_BASE_URL: ${PANSOU_BASE_URL:-https://pansou.top}
-      VIDEO_SEARCH_TIMEOUT_MS: ${VIDEO_SEARCH_TIMEOUT_MS:-12000}
+      VIDEO_SEARCH_TIMEOUT_MS: ${VIDEO_SEARCH_TIMEOUT_MS:-30000}
       VIDEO_SEARCH_MAX_RESULTS: ${VIDEO_SEARCH_MAX_RESULTS:-100}
       VIDEO_SEARCH_RESOLVE_CACHE_TTL_MS: ${VIDEO_SEARCH_RESOLVE_CACHE_TTL_MS:-300000}
     volumes:
@@ -50,7 +50,7 @@ services:
       context: .
       dockerfile: Dockerfile.web.dev
     restart: unless-stopped
-    command: npm run dev -- --host 0.0.0.0
+    command: sh /app/scripts/start-web-dev.sh
     environment:
       VITE_API_PROXY_TARGET: http://api:3000
     ports:

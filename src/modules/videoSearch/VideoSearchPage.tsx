@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react'
 import { App, Button, Empty, Input, Segmented, Space, Spin, Table, Tag, Tooltip, Typography } from 'antd'
-import { ArrowLeftOutlined, CloudOutlined, LinkOutlined, LogoutOutlined, SearchOutlined } from '@ant-design/icons'
+import { CloudOutlined, LinkOutlined, SearchOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../auth'
-import { useSystemSettings } from '../../system-settings'
+import { SystemFooter, SystemHeader } from '../../platform/layout/SystemChrome'
 import { videoSearchApi } from './api'
 import type { VideoSearchResult, VideoSearchSourceStatus, VideoStorageType } from './types'
 
@@ -24,10 +22,7 @@ function SourceState({ source }: { source: VideoSearchSourceStatus }) {
 }
 
 export default function VideoSearchPage() {
-  const navigate = useNavigate()
   const { message } = App.useApp()
-  const { user, loading: authLoading, logout } = useAuth()
-  const { settings, defaultLogo } = useSystemSettings()
   const [keyword, setKeyword] = useState('')
   const [results, setResults] = useState<VideoSearchResult[]>([])
   const [sourceStates, setSourceStates] = useState<VideoSearchSourceStatus[]>([])
@@ -104,14 +99,8 @@ export default function VideoSearchPage() {
     { title: '来源线路', dataIndex: 'sourceLine', width: 150, render: (value?: string) => value || '-' },
   ]
 
-  const leave = async () => { await logout(); navigate('/login', { replace: true }) }
   return <div className="video-search-page">
-    <header className="video-search-header">
-      <div className="video-search-header-left"><Button type="text" icon={<ArrowLeftOutlined />} title="返回工作台" onClick={() => navigate('/')} /><img className="brand-mark small" src={settings.systemLogo || defaultLogo} alt="" /><strong>{settings.systemTitle}</strong></div>
-      {!authLoading && (user
-        ? <Space size="middle"><Typography.Text>{user.name}</Typography.Text><Button type="text" icon={<LogoutOutlined />} title="退出" onClick={() => void leave()} /></Space>
-        : <Button type="text" onClick={() => navigate('/login')}>登录</Button>)}
-    </header>
+    <SystemHeader />
     <main className="video-search-main">
       <section className="video-search-toolbar">
         <div className="video-search-title"><CloudOutlined /><Typography.Title level={2}>天影查</Typography.Title></div>
@@ -127,5 +116,6 @@ export default function VideoSearchPage() {
         <Table<VideoSearchResult> rowKey="id" loading={loading} columns={columns} dataSource={filteredResults} scroll={{ x: 720 }} pagination={{ current: page, pageSize: PAGE_SIZE, showSizeChanger: false, hideOnSinglePage: true, onChange: setPage }} locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={searched ? '暂无匹配结果' : '暂无搜索结果'} /> }} />
       </section>
     </main>
+    <SystemFooter />
   </div>
 }
