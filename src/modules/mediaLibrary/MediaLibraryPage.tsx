@@ -5,12 +5,14 @@ import { useNavigate } from 'react-router-dom'
 import { SystemFooter, SystemHeader } from '../../platform/layout/SystemChrome'
 import { mediaLibraryApi } from './api'
 import MediaPoster from './MediaPoster'
+import { MediaThemeProvider, MediaThemeToggle, useMediaTheme } from './MediaTheme'
 import { episodeLabel } from './episode'
 import type { MediaItem, MediaType } from './types'
 
 export default function MediaLibraryPage() {
   const navigate = useNavigate()
   const { message } = App.useApp()
+  const { darkMode, setDarkMode } = useMediaTheme()
   const [type, setType] = useState<MediaType>('movie')
   const [items, setItems] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,8 +32,8 @@ export default function MediaLibraryPage() {
 
   useEffect(() => { void load(type, query) }, [load, query, type])
 
-  return <div className="media-library-page">
-    <SystemHeader />
+  return <MediaThemeProvider darkMode={darkMode}><div className={`media-library-page${darkMode ? ' is-dark' : ''}`}>
+    <SystemHeader actions={<MediaThemeToggle darkMode={darkMode} onChange={setDarkMode} />} />
     <main className="media-library-main">
       <div className="media-library-filters">
         <Segmented<MediaType> value={type} options={[{ label: '电影', value: 'movie' }, { label: '电视剧', value: 'tv' }]} onChange={setType} />
@@ -59,5 +61,5 @@ export default function MediaLibraryPage() {
           : <Empty className="media-library-empty" image={Empty.PRESENTED_IMAGE_SIMPLE} description={query ? `未找到“${query}”` : '暂无影视数据'} />}
     </main>
     <SystemFooter />
-  </div>
+  </div></MediaThemeProvider>
 }

@@ -1,11 +1,12 @@
 import { Button } from 'antd'
+import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth'
 import { sanitizeHtml } from '../../shared/sanitize-html'
 import { useSystemSettings } from '../../system-settings'
 import UserMenu from '../identity/UserMenu'
 
-export function SystemHeader() {
+export function SystemHeader({ actions }: { actions?: ReactNode } = {}) {
   const navigate = useNavigate()
   const { settings, defaultLogo } = useSystemSettings()
   const { user, loading, logout, can } = useAuth()
@@ -22,6 +23,7 @@ export function SystemHeader() {
       <strong>{settings.systemTitle}</strong>
     </button>
     <div className="header-actions">
+      {actions}
       {user && can('platform.app.read') && <Button type="text" onClick={() => navigate('/config/dashboard')}>控制台</Button>}
       {!loading && (user ? <UserMenu user={user} onLogout={leave} /> : <Button type="primary" onClick={() => navigate('/login')}>登录</Button>)}
     </div>

@@ -75,7 +75,7 @@ function itemIds(values) {
 }
 
 export function createMediaLibraryService(repository, doubanProvider, playableSearch, options = {}) {
-  const syncLimit = Math.min(50, Math.max(1, Number(options.syncLimit || process.env.MEDIA_LIBRARY_SYNC_LIMIT) || 20))
+  const syncLimit = Math.min(250, Math.max(1, Number(options.syncLimit || process.env.MEDIA_LIBRARY_SYNC_LIMIT) || 250))
   let syncPromise
   let progressPromise
 

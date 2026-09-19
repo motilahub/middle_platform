@@ -1,5 +1,6 @@
 import express from 'express'
 import { createDoubanProvider } from './doubanProvider.js'
+import { createBaofengProvider, createXinlangProvider, createYzy1080Provider } from './macCmsProvider.js'
 import { createNiuniuProvider } from './niuniuProvider.js'
 import { createPlayableSearch } from './playableSearch.js'
 import { createPosterProxy } from './posterProxy.js'
@@ -19,6 +20,11 @@ export const manifest = {
     { code: 'media.library.manage', name: '管理影视库' },
   ],
   enabledByDefault: true,
+}
+
+function providerEnabled(optionValue, environmentName) {
+  const value = optionValue ?? process.env[environmentName]
+  return value === undefined || !['0', 'false', 'off', 'no'].includes(String(value).trim().toLowerCase())
 }
 
 export function createMediaLibraryRouter(service, { asyncRoute, requirePermission, requireAnyPermission }) {
@@ -59,10 +65,11 @@ export function createMediaLibraryRouter(service, { asyncRoute, requirePermissio
 export function createModule({ pool, asyncRoute, requirePermission, requireAnyPermission }, options = {}) {
   const repository = createMediaLibraryRepository(pool)
   const provider = createDoubanProvider(options.doubanProvider)
-  const niuniuEnabledValue = options.niuniuProvider?.enabled ?? process.env.NIUNIU_PLAYABLE_ENABLED
-  const niuniuEnabled = niuniuEnabledValue === undefined || !['0', 'false', 'off', 'no'].includes(String(niuniuEnabledValue).trim().toLowerCase())
   const playableProviders = [
-    ...(niuniuEnabled ? [createNiuniuProvider(options.niuniuProvider)] : []),
+    ...(providerEnabled(options.baofengProvider?.enabled, 'BAOFENG_PLAYABLE_ENABLED') ? [createBaofengProvider(options.baofengProvider)] : []),
+    ...(providerEnabled(options.yzy1080Provider?.enabled, 'YZY1080_PLAYABLE_ENABLED') ? [createYzy1080Provider(options.yzy1080Provider)] : []),
+    ...(providerEnabled(options.xinlangProvider?.enabled, 'XINLANG_PLAYABLE_ENABLED') ? [createXinlangProvider(options.xinlangProvider)] : []),
+    ...(providerEnabled(options.niuniuProvider?.enabled, 'NIUNIU_PLAYABLE_ENABLED') ? [createNiuniuProvider(options.niuniuProvider)] : []),
     ...(options.playableProviders || []),
   ]
   const playableSearch = createPlayableSearch(playableProviders)

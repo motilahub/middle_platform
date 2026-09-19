@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createDoubanProvider, episodeCountFrom, episodeProgressFrom, normalizeDoubanDetail, normalizeDoubanItems, normalizeDoubanSearch } from './doubanProvider.js'
+import { createBaofengProvider, createXinlangProvider, createYzy1080Provider, normalizeMacCmsResults } from './macCmsProvider.js'
 import { createNiuniuProvider, normalizeNiuniuResults } from './niuniuProvider.js'
 import { createPlayableSearch } from './playableSearch.js'
 import { createPosterProxy } from './posterProxy.js'
@@ -54,6 +55,50 @@ test('豆瓣 Provider 使用结构化榜单接口', async () => {
   assert.equal(items[0].mediaType, 'movie')
 })
 
+test('豆瓣 Provider 分五页读取榜单前 250 名并连续补齐排名', async () => {
+  const requestedUrls = []
+  const provider = createDoubanProvider({
+    fetch: async (url) => {
+      const parsedUrl = new URL(url)
+      requestedUrls.push(parsedUrl)
+      const start = Number(parsedUrl.searchParams.get('start'))
+      const count = Number(parsedUrl.searchParams.get('count'))
+      return new Response(JSON.stringify({ subject_collection_items: Array.from({ length: count }, (_, index) => ({
+        id: String(start + index + 1),
+        title: `影片${start + index + 1}`,
+        rating: { value: 8 },
+      })) }))
+    },
+  })
+  const items = await provider.list('movie', 250)
+  assert.equal(items.length, 250)
+  assert.deepEqual(requestedUrls.map((url) => [url.searchParams.get('start'), url.searchParams.get('count')]), [
+    ['0', '50'], ['50', '50'], ['100', '50'], ['150', '50'], ['200', '50'],
+  ])
+  assert.equal(items[49].ranking, 50)
+  assert.equal(items[50].ranking, 51)
+  assert.equal(items[249].ranking, 250)
+})
+
+test('豆瓣 Provider 遇到单页无效条目时仍继续读取下一页', async () => {
+  const starts = []
+  const provider = createDoubanProvider({
+    fetch: async (url) => {
+      const parsedUrl = new URL(url)
+      const start = Number(parsedUrl.searchParams.get('start'))
+      starts.push(start)
+      const items = start === 0
+        ? Array.from({ length: 50 }, (_, index) => index === 0 ? { title: '无编号条目' } : { id: String(index + 1), title: `影片${index + 1}` })
+        : [{ id: '51', title: '影片51' }]
+      return new Response(JSON.stringify({ total: 51, subject_collection_items: items }))
+    },
+  })
+  const items = await provider.list('tv', 100)
+  assert.deepEqual(starts, [0, 50])
+  assert.equal(items.length, 50)
+  assert.equal(items.at(-1).ranking, 51)
+})
+
 test('豆瓣名称搜索只保留电影和电视剧', () => {
   const results = normalizeDoubanSearch({ subjects: { items: [
     { target_type: 'tv', target: { id: '25754848', title: '琅琊榜', year: '2015', rating: { value: 9.4 } } },
@@ -93,7 +138,7 @@ test('豆瓣 Provider 通过公开联想接口搜索并读取正式详情', asyn
   assert.equal(results[0].rating, 9.4)
 })
 
-test('影视库同步合并并发请求并按类型写入', async () => {
+test('影视库同步合并并发请求并按类型各读取最多五页', async () => {
   const calls = []
   const repository = {
     list: async () => [],
@@ -102,12 +147,12 @@ test('影视库同步合并并发请求并按类型写入', async () => {
     sync: async (type, items) => { calls.push(type); return { inserted: items.length, updated: 0 } },
   }
   const doubanProvider = {
-    list: async (type) => [{ externalId: type, mediaType: type }],
+    list: async (type, limit) => { calls.push(`${type}:${limit}`); return [{ externalId: type, mediaType: type }] },
   }
   const service = createMediaLibraryService(repository, doubanProvider, createPlayableSearch())
   const [first, second] = await Promise.all([service.sync(), service.sync()])
   assert.deepEqual(first, second)
-  assert.deepEqual(calls.sort(), ['movie', 'tv'])
+  assert.deepEqual(calls.sort(), ['movie', 'movie:250', 'tv', 'tv:250'])
   assert.equal(first.sources.every((source) => source.status === 'success'), true)
 })
 
@@ -266,6 +311,70 @@ test('牛牛播放源拒绝同名不同年份并支持无编号选集回退', ()
 test('牛牛播放源将上游异常转换为明确错误', async () => {
   const provider = createNiuniuProvider({ fetch: async () => new Response('error', { status: 503 }) })
   await assert.rejects(() => provider.search({ title: '测试剧', episode: 1 }), /牛牛资源搜索返回 503/)
+})
+
+test('MacCMS 播放源只返回完全匹配年份和指定线路的直连 HLS', () => {
+  const records = [{
+    vod_name: '测试 电影',
+    vod_year: '2025',
+    vod_play_from: 'share$$$bfzym3u8',
+    vod_play_url: 'HD$https://share.example/item$$$高清$https://media.example/movie.m3u8#下载$http://media.example/movie.mp4',
+  }, {
+    vod_name: '测试电影特别篇',
+    vod_year: '2025',
+    vod_play_from: 'bfzym3u8',
+    vod_play_url: '高清$https://media.example/special.m3u8',
+  }]
+  assert.deepEqual(normalizeMacCmsResults(records, { title: '测试电影', year: 2025 }, ['bfzym3u8']), [
+    { title: '测试 电影 · 高清', url: 'https://media.example/movie.m3u8', type: 'hls' },
+  ])
+  assert.deepEqual(normalizeMacCmsResults(records, { title: '测试电影', year: 2024 }, ['bfzym3u8']), [])
+})
+
+test('MacCMS 播放源按集数选择并支持无编号线路回退', () => {
+  const records = [{
+    vod_name: '测试剧',
+    vod_year: '2026',
+    vod_play_from: 'xlm3u8',
+    vod_play_url: '上集$https://media.example/01.m3u8#下集$https://media.example/02.m3u8',
+  }]
+  assert.deepEqual(normalizeMacCmsResults(records, { title: '测试剧', year: 2026, episode: 2 }, ['xlm3u8']), [
+    { title: '测试剧 · 下集', url: 'https://media.example/02.m3u8', type: 'hls' },
+  ])
+})
+
+test('暴风、1080影视和新浪 Provider 使用各自接口与播放标识', async () => {
+  const cases = [
+    [createBaofengProvider, 'baofeng', '暴风资源', 'bfzym3u8'],
+    [createYzy1080Provider, 'yzy1080', '1080影视', '1080zyk'],
+    [createXinlangProvider, 'xinlang', '新浪资源', 'xlm3u8'],
+  ]
+  for (const [factory, id, name, flag] of cases) {
+    let requestedUrl
+    const provider = factory({
+      apiUrl: `https://${id}.example/api.php`,
+      fetch: async (url) => {
+        requestedUrl = new URL(url)
+        return Response.json({ list: [{
+          vod_name: '测试剧',
+          vod_year: '2026',
+          vod_play_from: flag,
+          vod_play_url: '第01集$https://media.example/01.m3u8',
+        }] })
+      },
+    })
+    const results = await provider.search({ title: '测试剧', year: 2026, episode: 1 })
+    assert.equal(provider.id, id)
+    assert.equal(provider.name, name)
+    assert.equal(requestedUrl.searchParams.get('ac'), 'detail')
+    assert.equal(requestedUrl.searchParams.get('wd'), '测试剧')
+    assert.deepEqual(results, [{ title: '测试剧 · 第01集', url: 'https://media.example/01.m3u8', type: 'hls' }])
+  }
+})
+
+test('MacCMS 播放源将上游异常转换为来源明确的错误', async () => {
+  const provider = createBaofengProvider({ fetch: async () => new Response('error', { status: 503 }) })
+  await assert.rejects(() => provider.search({ title: '测试剧' }), /暴风资源搜索返回 503/)
 })
 
 test('海报代理仅请求豆瓣图片域名并附带来源页', async () => {

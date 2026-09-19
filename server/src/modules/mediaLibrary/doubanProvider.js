@@ -40,14 +40,14 @@ export function episodeProgressFrom(value, declaredTotal) {
   return { totalEpisodeCount: total || statedCount, availableEpisodeCount: null, episodeStatus: 'unknown' }
 }
 
-export function normalizeDoubanItems(body, mediaType, collection) {
+export function normalizeDoubanItems(body, mediaType, collection, rankOffset = 0) {
   const items = Array.isArray(body?.subject_collection_items) ? body.subject_collection_items : []
   return items.flatMap((item, index) => {
     const externalId = String(item?.id || '').trim()
     const title = String(item?.title || '').trim()
     if (!/^\d+$/.test(externalId) || !title) return []
     const rating = Number(item?.rating?.value)
-    const rank = Number(item?.rank) || index + 1
+    const rank = Number(item?.rank) || rankOffset + index + 1
     const episodesInfo = String(item?.episodes_info || '').trim()
     const progress = mediaType === 'tv' ? episodeProgressFrom(episodesInfo, item?.episodes_count) : {}
     return [{
@@ -135,7 +135,7 @@ export function normalizeDoubanDetail(body, mediaType) {
 export function createDoubanProvider(options = {}) {
   const baseUrl = normalizeBaseUrl(options.baseUrl || process.env.DOUBAN_BASE_URL)
   const movieCollection = normalizeCollection(options.movieCollection || process.env.DOUBAN_MOVIE_COLLECTION, 'movie_top250')
-  const tvCollection = normalizeCollection(options.tvCollection || process.env.DOUBAN_TV_COLLECTION, 'tv_domestic')
+  const tvCollection = normalizeCollection(options.tvCollection || process.env.DOUBAN_TV_COLLECTION, 'tv_hot')
   const timeoutMs = Math.min(30000, Math.max(1000, Number(options.timeoutMs || process.env.DOUBAN_TIMEOUT_MS) || 12000))
   const request = options.fetch || fetch
 
@@ -160,18 +160,34 @@ export function createDoubanProvider(options = {}) {
     try { return await response.json() } catch { throw providerError(`${label}未返回有效数据`) }
   }
 
-  async function list(mediaType, limit = 20) {
+  async function list(mediaType, limit = 250) {
     if (!['movie', 'tv'].includes(mediaType)) throw providerError('不支持的影视类型', 400)
     const collection = mediaType === 'movie' ? movieCollection : tvCollection
-    const safeLimit = Math.min(50, Math.max(1, Number(limit) || 20))
-    const body = await fetchJson(
-      `/rexxar/api/v2/subject_collection/${collection}/items`,
-      { start: 0, count: safeLimit },
-      `豆瓣${mediaType === 'movie' ? '电影' : '电视剧'}榜单`,
-    )
-    const items = normalizeDoubanItems(body, mediaType, collection)
+    const safeLimit = Math.min(250, Math.max(1, Number(limit) || 250))
+    const items = []
+    const externalIds = new Set()
+    let start = 0
+    while (items.length < safeLimit && start < safeLimit) {
+      const count = Math.min(50, safeLimit - start)
+      const body = await fetchJson(
+        `/rexxar/api/v2/subject_collection/${collection}/items`,
+        { start, count },
+        `豆瓣${mediaType === 'movie' ? '电影' : '电视剧'}榜单`,
+      )
+      const rawPageSize = Array.isArray(body?.subject_collection_items) ? body.subject_collection_items.length : 0
+      const collectionTotal = Number(body?.total || body?.subject_collection?.total)
+      const page = normalizeDoubanItems(body, mediaType, collection, start)
+      for (const item of page) {
+        if (externalIds.has(item.externalId)) continue
+        externalIds.add(item.externalId)
+        items.push(item)
+      }
+      start += count
+      const hasCollectionTotal = Number.isFinite(collectionTotal) && collectionTotal > 0
+      if (!rawPageSize || (hasCollectionTotal ? start >= collectionTotal : rawPageSize < count)) break
+    }
     if (!items.length) throw providerError(`豆瓣${mediaType === 'movie' ? '电影' : '电视剧'}榜单暂无可用数据`)
-    return items
+    return items.slice(0, safeLimit)
   }
 
   async function search(value, limit = 10) {
