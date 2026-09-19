@@ -14,6 +14,7 @@ export function mapApp(row) {
     img: row.image_original || undefined,
     imgThumbnail: row.image_thumbnail || undefined, imgFileName: row.image_filename || undefined,
     outboundSsoConfigId: row.outbound_sso_config_id ? Number(row.outbound_sso_config_id) : undefined,
+    openMode: row.open_mode === 'new_tab' ? 'new_tab' : 'current',
     visibility: row.visibility || 'public',
     userIds: (row.user_ids || []).map(Number),
   }

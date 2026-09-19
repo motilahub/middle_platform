@@ -55,8 +55,8 @@ export default function SystemSecurityConfig() {
     <div className="page-title"><div><Typography.Title level={3}>基础配置</Typography.Title><Typography.Text type="secondary">维护登录界面、浏览器标识和系统页脚信息</Typography.Text></div><Button type="primary" disabled={!can('platform.settings.write')} onClick={() => form.submit()}>保存</Button></div>
     <Form form={form} layout="vertical" onFinish={(values) => void save(values)} className="system-settings-form">
       <Typography.Title level={5}>品牌标识</Typography.Title>
-      <Form.Item name="systemTitle" label="系统标题" rules={[{ required: true, message: '请输入系统标题' }]}><Input maxLength={120} placeholder="集成平台" /></Form.Item>
-      <Form.Item name="browserTitle" label="浏览器 Title" rules={[{ required: true, message: '请输入浏览器 Title' }]}><Input maxLength={120} placeholder="集成平台" /></Form.Item>
+      <Form.Item name="systemTitle" label="系统标题" rules={[{ required: true, message: '请输入系统标题' }]}><Input maxLength={120} placeholder="Motila" /></Form.Item>
+      <Form.Item name="browserTitle" label="浏览器 Title" rules={[{ required: true, message: '请输入浏览器 Title' }]}><Input maxLength={120} placeholder="Motila" /></Form.Item>
       {imageControl('systemLogo', '系统 Logo')}
       {imageControl('titleLogo', 'Title Logo')}
       <Typography.Title level={5}>登录与页脚</Typography.Title>

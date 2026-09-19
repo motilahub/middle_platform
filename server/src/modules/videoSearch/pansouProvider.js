@@ -67,7 +67,7 @@ export function isAllowedPanLink(value) {
 
 export function createPanSouProvider(options = {}) {
   const baseUrl = normalizeBaseUrl(options.baseUrl || process.env.PANSOU_BASE_URL)
-  const timeoutMs = Math.min(30000, Math.max(1000, Number(options.timeoutMs || process.env.VIDEO_SEARCH_TIMEOUT_MS) || 12000))
+  const timeoutMs = Math.min(30000, Math.max(1000, Number(options.timeoutMs || process.env.VIDEO_SEARCH_TIMEOUT_MS) || 30000))
   const perTypeLimit = Math.min(200, Math.max(1, Number(options.maxResults || process.env.VIDEO_SEARCH_MAX_RESULTS) || 100))
   const resolveCacheTtlMs = Math.min(30 * 60 * 1000, Math.max(0, Number(options.resolveCacheTtlMs ?? process.env.VIDEO_SEARCH_RESOLVE_CACHE_TTL_MS) || 5 * 60 * 1000))
   const resolveCacheMaxEntries = 500

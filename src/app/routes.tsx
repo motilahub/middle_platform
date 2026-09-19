@@ -15,6 +15,7 @@ import ModelProviderConfig from '../pages/config/ModelProviderConfig'
 import AgentConfig from '../pages/config/AgentConfig'
 import AIChatConfig from '../pages/config/AIChatConfig'
 import AIChat from '../pages/AIChat'
+import MediaLibraryConfigPage from '../modules/mediaLibrary/MediaLibraryConfigPage'
 import { getBusinessRouteElements } from '../modules/registry'
 
 function Guard({ children, adminOnly = false, requiredPermission, requiredAnyPermissions }: { children: JSX.Element; adminOnly?: boolean; requiredPermission?: string; requiredAnyPermissions?: string[] }) {
@@ -29,13 +30,14 @@ function Guard({ children, adminOnly = false, requiredPermission, requiredAnyPer
 }
 
 function ConfigIndexRedirect() {
-  const { can } = useAuth()
+  const { can, canAny } = useAuth()
   if (can('platform.app.read')) return <Navigate to="dashboard" replace />
   if (can('platform.user.read')) return <Navigate to="users" replace />
   if (can('platform.permission.read')) return <Navigate to="permission-groups" replace />
   if (can('platform.settings.read')) return <Navigate to="basic-config" replace />
   if (can('platform.model_provider.read')) return <Navigate to="model-providers" replace />
   if (can('platform.sso.read')) return <Navigate to="sso/inbound" replace />
+  if (canAny(['media.library.read', 'media.library.manage'])) return <Navigate to="media-library" replace />
   return <Navigate to="/" replace />
 }
 
@@ -48,7 +50,7 @@ export default function AppRoutes() {
     <Route path="/login" element={<Login />} />
     <Route path="/" element={<Workbench />} />
     <Route path="/ai-chat" element={<Guard><AIChat /></Guard>} />
-    <Route path="/config" element={<Guard requiredAnyPermissions={['platform.app.read', 'platform.user.read', 'platform.settings.read', 'platform.sso.read', 'platform.model_provider.read', 'platform.ai_agent.read']}><ConfigLayout onLogout={handleLogout} /></Guard>}>
+    <Route path="/config" element={<Guard requiredAnyPermissions={['platform.app.read', 'platform.user.read', 'platform.settings.read', 'platform.sso.read', 'platform.model_provider.read', 'platform.ai_agent.read', 'media.library.read', 'media.library.manage']}><ConfigLayout onLogout={handleLogout} /></Guard>}>
       <Route index element={<ConfigIndexRedirect />} />
       <Route path="dashboard" element={<Guard requiredPermission="platform.app.read"><DashboardConfig /></Guard>} />
       <Route path="app-categories" element={<Guard requiredPermission="platform.app.read"><CategoryConfig /></Guard>} />
@@ -61,6 +63,7 @@ export default function AppRoutes() {
       <Route path="ai-chat" element={<Guard requiredPermission="platform.settings.read"><AIChatConfig /></Guard>} />
       <Route path="sso/inbound" element={<Guard requiredPermission="platform.sso.read"><SsoConfig direction="inbound" /></Guard>} />
       <Route path="sso/outbound" element={<Guard requiredPermission="platform.sso.read"><SsoConfig direction="outbound" /></Guard>} />
+      <Route path="media-library" element={<Guard requiredAnyPermissions={['media.library.read', 'media.library.manage']}><MediaLibraryConfigPage /></Guard>} />
     </Route>
     {getBusinessRouteElements()}
     <Route path="*" element={<Navigate to="/" replace />} />

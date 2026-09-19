@@ -26,7 +26,7 @@ export function createWorkbenchRepository(pool) {
       const client = await pool.connect()
       try {
         await client.query('BEGIN')
-        const result = await client.query('INSERT INTO dashboard_apps(code,name,priority,category_id,url,enabled,image_original,image_thumbnail,image_filename,outbound_sso_config_id,visibility) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id', values)
+        const result = await client.query('INSERT INTO dashboard_apps(code,name,priority,category_id,url,enabled,image_original,image_thumbnail,image_filename,outbound_sso_config_id,visibility,open_mode) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id', values)
         await this.saveUsers(client, result.rows[0].id, userIds)
         await client.query('COMMIT')
         return Number(result.rows[0].id)
@@ -36,7 +36,7 @@ export function createWorkbenchRepository(pool) {
       const client = await pool.connect()
       try {
         await client.query('BEGIN')
-        await client.query('UPDATE dashboard_apps SET name=$1,priority=$2,category_id=$3,url=$4,enabled=$5,image_original=$6,image_thumbnail=$7,image_filename=$8,outbound_sso_config_id=$9,visibility=$10,updated_at=NOW() WHERE id=$11', [...values, id])
+        await client.query('UPDATE dashboard_apps SET name=$1,priority=$2,category_id=$3,url=$4,enabled=$5,image_original=$6,image_thumbnail=$7,image_filename=$8,outbound_sso_config_id=$9,visibility=$10,open_mode=$11,updated_at=NOW() WHERE id=$12', [...values, id])
         await this.saveUsers(client, id, userIds)
         await client.query('COMMIT')
       } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }

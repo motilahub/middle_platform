@@ -4,8 +4,8 @@ import type { SystemSettings } from './types'
 import defaultLogo from './images/logo.jpg'
 
 const defaults: SystemSettings = {
-  systemTitle: '集成平台',
-  browserTitle: '集成平台',
+  systemTitle: 'Motila',
+  browserTitle: 'Motila',
   loginText: '控制台',
   showWorkbenchHeader: true,
   showAiChatHeader: true,

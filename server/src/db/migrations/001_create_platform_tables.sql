@@ -51,8 +51,8 @@ CREATE TABLE IF NOT EXISTS sso_configs (
 
 CREATE TABLE IF NOT EXISTS system_settings (
   id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  system_title VARCHAR(120) NOT NULL DEFAULT '集成平台',
-  browser_title VARCHAR(120) NOT NULL DEFAULT '集成平台',
+  system_title VARCHAR(120) NOT NULL DEFAULT 'Motila',
+  browser_title VARCHAR(120) NOT NULL DEFAULT 'Motila',
   system_logo TEXT,
   title_logo TEXT,
   login_text VARCHAR(255) NOT NULL DEFAULT '控制台',
