@@ -495,6 +495,7 @@
 .media-library-filters .ant-input-search { width: min(360px, 100%); }
 .media-library-loading, .media-library-empty { min-height: 360px; display: grid; place-items: center; }
 .media-library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 24px 20px; }
+.media-library-pagination { display: flex; justify-content: center; margin-top: 34px; }
 .media-library-item { min-width: 0; overflow: hidden; padding: 0; border: 1px solid #e0e5ec; border-radius: 8px; color: #172033; background: #fff; cursor: pointer; text-align: left; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
 .media-library-item:hover { border-color: #9ab7e8; box-shadow: 0 10px 24px rgba(29, 52, 88, .10); transform: translateY(-3px); }
 .media-library-poster { position: relative; width: 100%; aspect-ratio: 2 / 3; display: grid; place-items: center; overflow: hidden; color: #2563eb; background: #e9eff8; font-size: 46px; font-weight: 700; }
