@@ -21,6 +21,18 @@ type PresentationConnectionLike = {
 }
 
 type PresentationRequestLike = { start: () => Promise<PresentationConnectionLike> }
+type SafariDocument = Document & {
+  webkitExitFullscreen?: () => void | Promise<void>
+  webkitFullscreenElement?: Element | null
+}
+type SafariFullscreenElement = HTMLElement & { webkitRequestFullscreen?: () => void | Promise<void> }
+type SafariVideoElement = HTMLVideoElement & {
+  webkitCurrentPlaybackTargetIsWireless?: boolean
+  webkitDisplayingFullscreen?: boolean
+  webkitEnterFullscreen?: () => void
+  webkitExitFullscreen?: () => void
+  webkitShowPlaybackTargetPicker?: () => void
+}
 
 export type PlaybackMode = 'auto' | 'hls' | 'direct'
 type PlayerStatus = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'error'
@@ -39,6 +51,16 @@ export interface VideoPlayerProps {
 
 function getPresentationRequest() {
   return (window as Window & { PresentationRequest?: new (url: string) => PresentationRequestLike }).PresentationRequest
+}
+
+function fullscreenElement() {
+  const safariDocument = document as SafariDocument
+  return document.fullscreenElement || safariDocument.webkitFullscreenElement || null
+}
+
+function usesNativeSafariFullscreen() {
+  return /iP(?:ad|hone|od)/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 }
 
 function normalizeMediaUrl(value: string) {
@@ -93,6 +115,7 @@ export default function VideoPlayer({
   const [muted, setMuted] = useState(false)
   const [playbackRate, setPlaybackRate] = useState(1)
   const [presentation, setPresentation] = useState<PresentationConnectionLike>()
+  const [airPlayConnected, setAirPlayConnected] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [controlsVisible, setControlsVisible] = useState(true)
   const [volumeOpen, setVolumeOpen] = useState(false)
@@ -225,25 +248,46 @@ export default function VideoPlayer({
     setControlsVisible(true)
   }, [])
 
+  useEffect(() => {
+    const video = videoRef.current as SafariVideoElement | null
+    if (!video) return
+    video.setAttribute('x-webkit-airplay', 'allow')
+    const handleAirPlayChange = () => setAirPlayConnected(Boolean(video.webkitCurrentPlaybackTargetIsWireless))
+    const handleNativeFullscreenStart = () => setIsFullscreen(true)
+    const handleNativeFullscreenEnd = () => { setIsFullscreen(false); keepControlsVisible() }
+    video.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', handleAirPlayChange)
+    video.addEventListener('webkitbeginfullscreen', handleNativeFullscreenStart)
+    video.addEventListener('webkitendfullscreen', handleNativeFullscreenEnd)
+    return () => {
+      video.removeEventListener('webkitcurrentplaybacktargetiswirelesschanged', handleAirPlayChange)
+      video.removeEventListener('webkitbeginfullscreen', handleNativeFullscreenStart)
+      video.removeEventListener('webkitendfullscreen', handleNativeFullscreenEnd)
+    }
+  }, [keepControlsVisible])
+
   const scheduleControlsHide = useCallback(() => {
     if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current)
     setControlsVisible(true)
-    if (document.fullscreenElement !== stageRef.current || videoRef.current?.paused || volumeOpen) return
+    if (fullscreenElement() !== stageRef.current || videoRef.current?.paused || volumeOpen) return
     controlsHideTimerRef.current = setTimeout(() => {
       controlsHideTimerRef.current = undefined
-      if (document.fullscreenElement === stageRef.current && !videoRef.current?.paused && !volumeOpen) setControlsVisible(false)
+      if (fullscreenElement() === stageRef.current && !videoRef.current?.paused && !volumeOpen) setControlsVisible(false)
     }, 2500)
   }, [volumeOpen])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      const fullscreen = document.fullscreenElement === stageRef.current
+      const fullscreen = fullscreenElement() === stageRef.current
       setIsFullscreen(fullscreen)
       if (fullscreen) scheduleControlsHide()
       else keepControlsVisible()
     }
     document.addEventListener('fullscreenchange', handleFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
+    }
   }, [keepControlsVisible, scheduleControlsHide])
 
   useEffect(() => {
@@ -280,13 +324,47 @@ export default function VideoPlayer({
   }
 
   const toggleFullscreen = async () => {
-    const stage = stageRef.current
-    if (!stage || !activeSource) return
+    const stage = stageRef.current as SafariFullscreenElement | null
+    const player = videoRef.current as SafariVideoElement | null
+    if (!stage || !player || !activeSource) return
     try {
-      if (document.fullscreenElement) await document.exitFullscreen()
-      else await stage.requestFullscreen()
+      const safariDocument = document as SafariDocument
+      if (fullscreenElement()) {
+        if (document.exitFullscreen) await document.exitFullscreen()
+        else await safariDocument.webkitExitFullscreen?.()
+        return
+      }
+      if (player.webkitDisplayingFullscreen) {
+        player.webkitExitFullscreen?.()
+        return
+      }
+      if (usesNativeSafariFullscreen() && player.webkitEnterFullscreen) {
+        player.webkitEnterFullscreen()
+        return
+      }
+      if (stage.requestFullscreen) {
+        await stage.requestFullscreen()
+        return
+      }
+      if (stage.webkitRequestFullscreen) {
+        await stage.webkitRequestFullscreen()
+        return
+      }
+      if (player.webkitEnterFullscreen) {
+        player.webkitEnterFullscreen()
+        return
+      }
+      throw new Error('Fullscreen API unavailable')
     } catch {
-      message.warning(isFullscreen ? '浏览器未允许退出全屏' : '浏览器未允许进入全屏')
+      try {
+        if (!isFullscreen && player.webkitEnterFullscreen) {
+          player.webkitEnterFullscreen()
+          return
+        }
+      } catch {
+        // Continue to the user-facing warning below.
+      }
+      message.warning(isFullscreen ? '浏览器未允许退出全屏' : '浏览器未允许进入全屏，请直接点击视频后重试')
     }
   }
 
@@ -325,7 +403,16 @@ export default function VideoPlayer({
     if (!activeSource) return
     const PresentationRequest = getPresentationRequest()
     if (!PresentationRequest) {
-      message.info('当前浏览器不支持网络投屏，请使用支持 Presentation API 的浏览器或系统投屏功能')
+      const player = videoRef.current as SafariVideoElement | null
+      if (player?.webkitShowPlaybackTargetPicker) {
+        try {
+          player.webkitShowPlaybackTargetPicker()
+        } catch {
+          message.warning('Safari 未允许打开隔空播放设备，请先点击视频开始播放后重试')
+        }
+        return
+      }
+      message.info('当前浏览器不支持网页投屏，请使用浏览器或系统提供的投屏功能')
       return
     }
     try {
@@ -367,6 +454,8 @@ export default function VideoPlayer({
   }
 
   const playedPercent = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0
+  const casting = Boolean(presentation) || airPlayConnected
+  const castingLabel = presentation ? '退出投屏' : airPlayConnected ? '切换或退出隔空播放' : '投屏'
 
   return <>
     <section
@@ -425,7 +514,7 @@ export default function VideoPlayer({
       {status === 'loading' && !presentation && <div className="video-player-loading" aria-live="polite"><span /></div>}
       {!presentationReceiver && <div className="video-player-overlay-actions" aria-label="播放器操作" onMouseEnter={keepControlsVisible} onMouseMove={(event) => event.stopPropagation()} onMouseLeave={scheduleControlsHide}>
         {topRightContent}
-        <Tooltip title={presentation ? '退出投屏' : '投屏'}><Button type="text" shape="circle" icon={presentation ? <DisconnectOutlined /> : <DesktopOutlined />} disabled={!activeSource} onClick={() => (presentation ? stopPresentation() : void presentVideo())} /></Tooltip>
+        <Tooltip title={castingLabel}><Button type="text" shape="circle" icon={casting ? <DisconnectOutlined /> : <DesktopOutlined />} disabled={!activeSource} onClick={() => (presentation ? stopPresentation() : void presentVideo())} /></Tooltip>
       </div>}
       {!presentationReceiver && !presentation && <div className="video-player-bottom-controls" aria-label="播放控制" onMouseEnter={keepControlsVisible} onMouseMove={(event) => event.stopPropagation()} onMouseLeave={scheduleControlsHide}>
         <Tooltip title="重播"><Button type="text" shape="circle" icon={<ReloadOutlined />} disabled={!activeSource} onClick={() => void replayVideo()} /></Tooltip>
