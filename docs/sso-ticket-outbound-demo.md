@@ -1,17 +1,17 @@
 # 内部访出 Ticket SSO 联调 Demo 与配置
 
-本文说明如何从集成平台工作台使用一次性 Ticket 登录外部业务系统。示例目标系统位于 `mock_target_sso`，使用 Flask 实现，可通过 `conda py312` 环境直接启动。
+本文说明如何从Motila工作台使用一次性 Ticket 登录外部业务系统。示例目标系统位于 `mock_target_sso`，使用 Flask 实现，可通过 `conda py312` 环境直接启动。
 
 ## 认证流程
 
 ```text
-集成平台已登录用户点击工作台应用
+Motila已登录用户点击工作台应用
   -> POST /api/me/apps/:id/sso-ticket
-  -> 集成平台生成短时一次性 Ticket
+  -> Motila生成短时一次性 Ticket
   -> 浏览器跳转 mock_target_sso /sso/login?ssoCode=...&ticket=...
   -> mock_target_sso 服务端携带客户端密钥校验 Ticket
   -> POST /api/auth/sso/outbound/:ssoCode/verify
-  -> 集成平台原子核销 Ticket 并返回用户身份
+  -> Motila原子核销 Ticket 并返回用户身份
   -> mock_target_sso 建立自己的登录 Session
 ```
 
@@ -21,7 +21,7 @@
 
 ## 前置条件
 
-先启动集成平台，以下示例假定访问地址为：
+先启动Motila，以下示例假定访问地址为：
 
 ```text
 http://localhost:8088
@@ -160,7 +160,7 @@ Content-Type: application/json
 
 Ticket 只能使用一次，且默认 30 秒过期。请回到工作台重新点击应用，不要刷新带旧 Ticket 的 `/sso/login` 地址。
 
-### 无法连接集成平台 Ticket 校验接口
+### 无法连接Motila Ticket 校验接口
 
 确认 `MIDDLE_PLATFORM_VERIFY_URL` 是目标系统服务端可访问的地址。如果目标系统运行在 Docker 容器内，通常应将 `localhost` 替换为平台容器名或 `host.docker.internal`。
 

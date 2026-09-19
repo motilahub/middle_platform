@@ -1,23 +1,23 @@
 # SSO Ticket 联调 Demo 与配置
 
-本文说明如何使用 `mock_sso` 模拟 OA，通过一次性 Ticket 登录集成平台。
+本文说明如何使用 `mock_sso` 模拟 OA，通过一次性 Ticket 登录Motila。
 
 ## 1. 联调流程
 
 ```text
 浏览器
   -> mock_sso（选择用户并签发 Ticket）
-  -> 集成平台 /login?ssoCode=mock_oa&ticket=...
-  -> 集成平台 API /api/auth/sso/mock_oa/exchange
+  -> Motila /login?ssoCode=mock_oa&ticket=...
+  -> Motila API /api/auth/sso/mock_oa/exchange
   -> mock_sso /api/tickets/verify
-  -> 集成平台创建会话并跳转工作台
+  -> Motila创建会话并跳转工作台
 ```
 
 Ticket 默认有效期为 10 秒，并且只能成功校验一次。
 
 ## 2. 前置条件
 
-启动集成平台：
+启动Motila：
 
 ```bash
 docker compose up -d --build
@@ -56,7 +56,7 @@ conda run -n py312 python mock_sso/app.py
 | 优先级 | `1` | 数值越小优先级越高 |
 | 启用 | 开启 | 只有启用的配置才能交换 Ticket |
 
-如果集成平台 API 不是运行在 Docker 容器中，校验地址改为：
+如果Motila API 不是运行在 Docker 容器中，校验地址改为：
 
 ```text
 http://localhost:9000/api/tickets/verify
@@ -76,7 +76,7 @@ POST /api/admin/sso/inbound
 admin:Admin,demo:Demo,other:Other
 ```
 
-集成平台必须存在相同 `code` 的本地用户。默认管理员 `admin` 已存在；如果要测试 `demo` 或 `other`，请先在“用户管理”中创建同编码用户，否则会返回 `403 用户尚未配置门户权限`。
+Motila必须存在相同 `code` 的本地用户。默认管理员 `admin` 已存在；如果要测试 `demo` 或 `other`，请先在“用户管理”中创建同编码用户，否则会返回 `403 用户尚未配置门户权限`。
 
 也可以通过环境变量自定义模拟用户：
 
@@ -91,10 +91,10 @@ conda run -n py312 python mock_sso/app.py
 ## 5. 发起登录测试
 
 1. 打开 `http://localhost:9000`。
-2. 选择一个已经在集成平台配置的用户。
+2. 选择一个已经在Motila配置的用户。
 3. 点击“发起单点登录”。
-4. 模拟 OA 会跳转到集成平台登录地址，并附带一次性 `ticket`。
-5. 集成平台服务端调用模拟 OA 的校验地址，校验成功后建立会话并进入工作台。
+4. 模拟 OA 会跳转到Motila登录地址，并附带一次性 `ticket`。
+5. Motila服务端调用模拟 OA 的校验地址，校验成功后建立会话并进入工作台。
 
 生成的跳转地址类似：
 
@@ -130,7 +130,7 @@ Docker 部署时不能把校验地址写成 `localhost:9000`，因为这会指�
 
 ### 用户尚未配置门户权限
 
-模拟 OA 返回的 `userId` 必须与集成平台用户的“账号”完全一致，注意大小写和空格。
+模拟 OA 返回的 `userId` 必须与Motila用户的“账号”完全一致，注意大小写和空格。
 
 ### Ticket 无效、已过期或已使用
 

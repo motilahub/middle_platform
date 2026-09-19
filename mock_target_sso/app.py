@@ -46,7 +46,7 @@ def verify_ticket(ticket: str) -> dict:
             message = None
         raise ValueError(message or "Ticket 校验失败") from error
     except (URLError, TimeoutError) as error:
-        raise ConnectionError("无法连接集成平台 Ticket 校验接口") from error
+        raise ConnectionError("无法连接Motila Ticket 校验接口") from error
 
 
 def page(content: str, status: int = 200) -> tuple[Response, int]:
@@ -64,7 +64,7 @@ h1{{margin:0 0 20px;font-size:24px}}dl{{display:grid;grid-template-columns:110px
 def home() -> tuple[Response, int]:
     identity = session.get("user")
     if not identity:
-        return page("<p>当前没有目标系统会话，请从集成平台工作台发起 Ticket 单点登录。</p>")
+        return page("<p>当前没有目标系统会话，请从Motila工作台发起 Ticket 单点登录。</p>")
     rows = "".join(
         f"<dt>{html.escape(str(key))}</dt><dd>{html.escape(str(value))}</dd>"
         for key, value in identity.items()

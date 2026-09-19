@@ -27,14 +27,17 @@ export default function Workbench() {
   const { user } = useAuth()
   const navigate = useNavigate()
   useEffect(() => { api.visibleApps().then(setApps).catch((error) => message.error((error as Error).message)) }, [message, user?.id])
-  const open = (url: string) => window.open(url, '_blank', 'noopener,noreferrer')
+  const open = (url: string, mode: DashboardApp['openMode']) => {
+    if (mode === 'new_tab') window.open(url, '_blank', 'noopener,noreferrer')
+    else window.location.assign(url)
+  }
   const openApp = async (dashboardApp: DashboardApp) => {
-    if (!dashboardApp.outboundSsoConfigId) { open(dashboardApp.url); return }
-    const popup = window.open('about:blank', '_blank')
+    if (!dashboardApp.outboundSsoConfigId) { open(dashboardApp.url, dashboardApp.openMode); return }
+    const popup = dashboardApp.openMode === 'new_tab' ? window.open('about:blank', '_blank') : null
     setOpeningAppId(dashboardApp.id)
     try {
       const result = await ssoApi.launchApp(dashboardApp.id)
-      if (popup) { popup.opener = null; popup.location.replace(result.redirectUrl) }
+      if (dashboardApp.openMode === 'new_tab' && popup) { popup.opener = null; popup.location.replace(result.redirectUrl) }
       else window.location.assign(result.redirectUrl)
     } catch (error) {
       popup?.close()

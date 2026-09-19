@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button, Drawer, Grid, Layout, Menu } from 'antd'
 import type { MenuProps } from 'antd'
-import { AppstoreOutlined, HomeOutlined, MenuFoldOutlined, MenuOutlined, MenuUnfoldOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons'
+import { AppstoreOutlined, HomeOutlined, MenuFoldOutlined, MenuOutlined, MenuUnfoldOutlined, SettingOutlined, UserOutlined, VideoCameraOutlined } from '@ant-design/icons'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth'
 import { useSystemSettings } from '../../system-settings'
@@ -11,17 +11,18 @@ import { sanitizeHtml } from '../../shared/sanitize-html'
 export default function ConfigLayout({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, can } = useAuth()
+  const { user, can, canAny } = useAuth()
   const screens = Grid.useBreakpoint()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { settings, defaultLogo } = useSystemSettings()
-  const selectedKey = location.pathname.includes('/model-providers') ? 'model-providers' : location.pathname.includes('/ai-agents') ? 'ai-agents' : location.pathname.includes('/ai-chat') ? 'ai-chat' : location.pathname.includes('/permission-groups') ? 'permission-groups' : location.pathname.includes('/app-categories') ? 'app-categories' : location.pathname.includes('/basic-config') ? 'basic-config' : location.pathname.includes('/system-security') ? 'system-security' : location.pathname.includes('/sso/inbound') ? 'sso-inbound' : location.pathname.includes('/sso/outbound') ? 'sso-outbound' : location.pathname.includes('users') ? 'users' : location.pathname.includes('dashboard') ? 'dashboard' : 'workbench'
+  const selectedKey = location.pathname.includes('/config/media-library') ? 'media-library' : location.pathname.includes('/model-providers') ? 'model-providers' : location.pathname.includes('/ai-agents') ? 'ai-agents' : location.pathname.includes('/ai-chat') ? 'ai-chat' : location.pathname.includes('/permission-groups') ? 'permission-groups' : location.pathname.includes('/app-categories') ? 'app-categories' : location.pathname.includes('/basic-config') ? 'basic-config' : location.pathname.includes('/system-security') ? 'system-security' : location.pathname.includes('/sso/inbound') ? 'sso-inbound' : location.pathname.includes('/sso/outbound') ? 'sso-outbound' : location.pathname.includes('users') ? 'users' : location.pathname.includes('dashboard') ? 'dashboard' : 'workbench'
   const ssoMenu = can('platform.sso.read') ? { key: 'sso-config', label: '单点登录', children: [{ key: 'sso-inbound', label: '外部访入', onClick: () => navigate('/config/sso/inbound') }, { key: 'sso-outbound', label: '内部访出', onClick: () => navigate('/config/sso/outbound') }] } : null
   const menuItems = [
     { key: 'workbench', icon: <HomeOutlined />, label: '工作台', onClick: () => navigate('/') },
     can('platform.app.read') && { key: 'dashboard', icon: <AppstoreOutlined />, label: '工作台配置', onClick: () => navigate('/config/dashboard') },
     can('platform.user.read') && { key: 'users', icon: <UserOutlined />, label: '用户管理', onClick: () => navigate('/config/users') },
+    canAny(['media.library.read', 'media.library.manage']) && { key: 'media-library', icon: <VideoCameraOutlined />, label: '影视库管理', onClick: () => navigate('/config/media-library') },
     (can('platform.app.read') || can('platform.settings.read') || can('platform.permission.read') || can('platform.model_provider.read') || can('platform.ai_agent.read') || ssoMenu) && { key: 'system-config', icon: <SettingOutlined />, label: '系统配置', children: [can('platform.settings.read') && { key: 'basic-config', label: '基础配置', onClick: () => navigate('/config/basic-config') }, can('platform.settings.read') && { key: 'system-security', label: '系统安全', onClick: () => navigate('/config/system-security') }, can('platform.settings.read') && { key: 'ai-chat', label: 'AI Chat 配置', onClick: () => navigate('/config/ai-chat') }, can('platform.app.read') && { key: 'app-categories', label: '控制台分类', onClick: () => navigate('/config/app-categories') }, can('platform.model_provider.read') && { key: 'model-providers', label: '模型供应商', onClick: () => navigate('/config/model-providers') }, can('platform.ai_agent.read') && { key: 'ai-agents', label: '智能体配置', onClick: () => navigate('/config/ai-agents') }, can('platform.permission.read') && { key: 'permission-groups', label: '权限管理', onClick: () => navigate('/config/permission-groups') }, ssoMenu].filter(Boolean) },
   ].filter(Boolean)
   const menu = <Menu mode="inline" inlineCollapsed={collapsed && !!screens.md} selectedKeys={[selectedKey]} items={menuItems as MenuProps['items']} onClick={() => setMobileMenuOpen(false)} />
@@ -31,7 +32,7 @@ export default function ConfigLayout({ onLogout }: { onLogout: () => void }) {
   return <Layout className="config-layout">
     <Layout.Sider width={240} collapsedWidth={64} collapsible collapsed={collapsed} trigger={null} theme="light">{brand}{menu}</Layout.Sider>
     <Layout>
-      <Layout.Header className="config-header"><Button className="config-header-menu" type="text" icon={screens.md ? (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />) : <MenuOutlined />} onClick={toggleMenu} title={screens.md ? (collapsed ? '展开菜单' : '收起菜单') : '展开菜单'} /><Button type="text" onClick={() => navigate('/config/dashboard')}>控制台</Button><UserMenu user={user!} onLogout={onLogout} /></Layout.Header>
+      <Layout.Header className="config-header"><Button className="config-header-menu" type="text" icon={screens.md ? (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />) : <MenuOutlined />} onClick={toggleMenu} title={screens.md ? (collapsed ? '展开菜单' : '收起菜单') : '展开菜单'} /><Button type="text" onClick={() => navigate('/config')}>控制台</Button><UserMenu user={user!} onLogout={onLogout} /></Layout.Header>
       <Layout.Content className="config-content"><Outlet /></Layout.Content>
       {settings.footerRecord && <Layout.Footer className="config-footer" dangerouslySetInnerHTML={{ __html: sanitizeHtml(settings.footerRecord) }} />}
     </Layout>

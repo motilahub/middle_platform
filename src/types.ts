@@ -52,6 +52,7 @@ export interface DashboardApp {
   imgThumbnail?: string
   imgFileName?: string
   outboundSsoConfigId?: number
+  openMode: 'current' | 'new_tab'
   enabled: boolean
   visibility: 'public' | 'private'
   userIds: number[]
