@@ -8,8 +8,9 @@ import {
   MutedFilled,
   PauseCircleOutlined,
   PlayCircleOutlined,
-  ReloadOutlined,
   SoundFilled,
+  StepBackwardOutlined,
+  StepForwardOutlined,
 } from '@ant-design/icons'
 import type HlsType from 'hls.js'
 
@@ -41,12 +42,19 @@ type BufferedRange = { start: number; end: number }
 export interface VideoPlayerProps {
   source?: string
   title?: string
+  showTitleOverlay?: boolean
   mode?: PlaybackMode
   autoPlay?: boolean
   reloadKey?: number
   presentationReceiver?: boolean
   topRightContent?: ReactNode
+  sideContent?: ReactNode
   onPlaybackError?: (source: string, message: string) => void
+  onEnded?: () => void
+  onPreviousEpisode?: () => void
+  onNextEpisode?: () => void
+  canPreviousEpisode?: boolean
+  canNextEpisode?: boolean
 }
 
 function getPresentationRequest() {
@@ -86,12 +94,19 @@ function formatPlaybackTime(seconds: number) {
 export default function VideoPlayer({
   source = '',
   title = '',
+  showTitleOverlay = false,
   mode = 'auto',
   autoPlay = true,
   reloadKey = 0,
   presentationReceiver = false,
   topRightContent,
+  sideContent,
   onPlaybackError,
+  onEnded,
+  onPreviousEpisode,
+  onNextEpisode,
+  canPreviousEpisode = false,
+  canNextEpisode = false,
 }: VideoPlayerProps) {
   const { message } = App.useApp()
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -102,6 +117,7 @@ export default function VideoPlayer({
   const presentationRef = useRef<PresentationConnectionLike>()
   const videoClickTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const onPlaybackErrorRef = useRef(onPlaybackError)
+  const onEndedRef = useRef(onEnded)
   const reportedErrorSourceRef = useRef('')
   const controlsHideTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const [activeSource, setActiveSource] = useState('')
@@ -123,6 +139,10 @@ export default function VideoPlayer({
   useEffect(() => {
     onPlaybackErrorRef.current = onPlaybackError
   }, [onPlaybackError])
+
+  useEffect(() => {
+    onEndedRef.current = onEnded
+  }, [onEnded])
 
   const resetVideo = useCallback(() => {
     loadSequenceRef.current += 1
@@ -384,21 +404,6 @@ export default function VideoPlayer({
     void toggleFullscreen()
   }
 
-  const replayVideo = async () => {
-    const player = videoRef.current
-    if (!player || !activeSource) return
-    if (presentation) {
-      message.info('视频正在投屏，请先退出投屏')
-      return
-    }
-    player.currentTime = 0
-    try {
-      await player.play()
-    } catch {
-      setStatus('ready')
-    }
-  }
-
   const presentVideo = async () => {
     if (!activeSource) return
     const PresentationRequest = getPresentationRequest()
@@ -491,7 +496,7 @@ export default function VideoPlayer({
           setIsPlaying(false)
           if (videoRef.current?.getAttribute('src') || hlsRef.current) setStatus('paused')
         }}
-        onEnded={() => { setIsPlaying(false); setStatus('paused') }}
+        onEnded={() => { setIsPlaying(false); setStatus('paused'); if (activeSource && !presentation) onEndedRef.current?.() }}
         onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
         onDurationChange={(event) => {
           setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)
@@ -505,6 +510,7 @@ export default function VideoPlayer({
           reportPlaybackError(activeSource, '视频加载失败，请确认地址有效且源站允许浏览器直接访问')
         }}
       />
+      {showTitleOverlay && activeSource && title && <div className="video-player-title-overlay" title={title}>{title}</div>}
       {!activeSource && <div className="video-player-placeholder" aria-hidden="true"><PlayCircleOutlined /></div>}
       {presentation && <div className="video-player-presented-message" role="status" aria-live="polite">
         <DesktopOutlined />
@@ -516,9 +522,11 @@ export default function VideoPlayer({
         {topRightContent}
         <Tooltip title={castingLabel}><Button type="text" shape="circle" icon={casting ? <DisconnectOutlined /> : <DesktopOutlined />} disabled={!activeSource} onClick={() => (presentation ? stopPresentation() : void presentVideo())} /></Tooltip>
       </div>}
+      {!presentationReceiver && sideContent}
       {!presentationReceiver && !presentation && <div className="video-player-bottom-controls" aria-label="播放控制" onMouseEnter={keepControlsVisible} onMouseMove={(event) => event.stopPropagation()} onMouseLeave={scheduleControlsHide}>
-        <Tooltip title="重播"><Button type="text" shape="circle" icon={<ReloadOutlined />} disabled={!activeSource} onClick={() => void replayVideo()} /></Tooltip>
+        {onPreviousEpisode && <Tooltip title="上一集"><Button type="text" shape="circle" icon={<StepBackwardOutlined />} aria-label="上一集" disabled={!activeSource || !canPreviousEpisode} onClick={onPreviousEpisode} /></Tooltip>}
         <Tooltip title={isPlaying ? '暂停' : '播放'}><Button type="text" shape="circle" icon={isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />} disabled={!activeSource} onClick={() => void togglePlayback()} /></Tooltip>
+        {onNextEpisode && <Tooltip title="下一集"><Button type="text" shape="circle" icon={<StepForwardOutlined />} aria-label="下一集" disabled={!activeSource || !canNextEpisode} onClick={onNextEpisode} /></Tooltip>}
         <span className="video-player-time">{formatPlaybackTime(currentTime)}</span>
         <div className="video-player-progress-shell">
           <div className="video-player-progress-track" aria-hidden="true">

@@ -66,7 +66,8 @@ export function normalizeNiuniuResults(records, input) {
       const selected = requestedEpisode
         ? entries.filter((entry) => entry.episode === requestedEpisode)
         : entries.slice(0, 6)
-      const fallback = requestedEpisode && !selected.length ? entries[requestedEpisode - 1] : null
+      const fallback = requestedEpisode && !selected.length && entries.every((entry) => entry.episode === null)
+        ? entries[requestedEpisode - 1] : null
       for (const entry of selected.length ? selected : fallback ? [fallback] : []) {
         results.push({
           title: `${title} · ${entry.label}`,

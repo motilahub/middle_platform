@@ -25,6 +25,22 @@ const PROVIDER_DEFAULTS = {
     timeoutEnv: 'XINLANG_TIMEOUT_MS',
     playbackFlags: ['xlm3u8'],
   },
+  feifan: {
+    id: 'feifan',
+    name: '非凡资源',
+    apiUrl: 'https://ffzy5.tv/api.php/provide/vod/',
+    apiEnv: 'FEIFAN_API_URL',
+    timeoutEnv: 'FEIFAN_TIMEOUT_MS',
+    playbackFlags: ['ffm3u8'],
+  },
+  zy360: {
+    id: 'zy360',
+    name: '360资源',
+    apiUrl: 'https://360zyzz.com/api.php/provide/vod/',
+    apiEnv: 'ZY360_API_URL',
+    timeoutEnv: 'ZY360_TIMEOUT_MS',
+    playbackFlags: ['360zy'],
+  },
 }
 
 function providerError(message, status = 502) {
@@ -101,7 +117,8 @@ export function normalizeMacCmsResults(records, input, playbackFlags) {
       const selected = requestedEpisode
         ? entries.filter((entry) => entry.episode === requestedEpisode)
         : entries.slice(0, 6)
-      const fallback = requestedEpisode && !selected.length ? entries[requestedEpisode - 1] : null
+      const fallback = requestedEpisode && !selected.length && entries.every((entry) => entry.episode === null)
+        ? entries[requestedEpisode - 1] : null
       for (const entry of selected.length ? selected : fallback ? [fallback] : []) {
         if (seenUrls.has(entry.url)) continue
         seenUrls.add(entry.url)
@@ -168,4 +185,12 @@ export function createYzy1080Provider(options = {}) {
 
 export function createXinlangProvider(options = {}) {
   return createMacCmsProvider(PROVIDER_DEFAULTS.xinlang, options)
+}
+
+export function createFeifanProvider(options = {}) {
+  return createMacCmsProvider(PROVIDER_DEFAULTS.feifan, options)
+}
+
+export function createZy360Provider(options = {}) {
+  return createMacCmsProvider(PROVIDER_DEFAULTS.zy360, options)
 }

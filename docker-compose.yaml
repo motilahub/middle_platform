@@ -51,6 +51,12 @@ services:
       NIUNIU_SITE_URL: ${NIUNIU_SITE_URL:-https://niuniuzy4.com}
       NIUNIU_API_URL: ${NIUNIU_API_URL:-https://api.niuniuzy.me/api.php/provide/vod/from/nnm3u8/at/json}
       NIUNIU_TIMEOUT_MS: ${NIUNIU_TIMEOUT_MS:-12000}
+      FEIFAN_PLAYABLE_ENABLED: ${FEIFAN_PLAYABLE_ENABLED:-true}
+      FEIFAN_API_URL: ${FEIFAN_API_URL:-https://ffzy5.tv/api.php/provide/vod/}
+      FEIFAN_TIMEOUT_MS: ${FEIFAN_TIMEOUT_MS:-12000}
+      ZY360_PLAYABLE_ENABLED: ${ZY360_PLAYABLE_ENABLED:-true}
+      ZY360_API_URL: ${ZY360_API_URL:-https://360zyzz.com/api.php/provide/vod/}
+      ZY360_TIMEOUT_MS: ${ZY360_TIMEOUT_MS:-12000}
     volumes:
       - ./server/src:/app/src:ro
       - upload_data:/app/uploads

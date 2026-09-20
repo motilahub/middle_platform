@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createDoubanProvider, episodeCountFrom, episodeProgressFrom, normalizeDoubanDetail, normalizeDoubanItems, normalizeDoubanSearch } from './doubanProvider.js'
-import { createBaofengProvider, createXinlangProvider, createYzy1080Provider, normalizeMacCmsResults } from './macCmsProvider.js'
+import { createBaofengProvider, createFeifanProvider, createXinlangProvider, createYzy1080Provider, createZy360Provider, normalizeMacCmsResults } from './macCmsProvider.js'
 import { createNiuniuProvider, normalizeNiuniuResults } from './niuniuProvider.js'
 import { createPlayableSearch } from './playableSearch.js'
 import { createPosterProxy } from './posterProxy.js'
@@ -349,11 +349,33 @@ test('MacCMS 播放源按集数选择并支持无编号线路回退', () => {
   ])
 })
 
-test('暴风、1080影视和新浪 Provider 使用各自接口与播放标识', async () => {
+test('MacCMS 已标注集数的线路不会用列表位置冒充缺失集数', () => {
+  const records = [{
+    vod_name: '测试剧',
+    vod_year: '2026',
+    vod_play_from: 'xlm3u8',
+    vod_play_url: '第01集$https://media.example/01.m3u8#第03集$https://media.example/03.m3u8',
+  }]
+  assert.deepEqual(normalizeMacCmsResults(records, { title: '测试剧', year: 2026, episode: 2 }, ['xlm3u8']), [])
+})
+
+test('牛牛已标注集数的线路不会用列表位置冒充缺失集数', () => {
+  const records = [{
+    vod_name: '测试剧',
+    vod_year: '2026',
+    vod_play_from: 'nnm3u8',
+    vod_play_url: '第01集$https://media.example/01.m3u8#第03集$https://media.example/03.m3u8',
+  }]
+  assert.deepEqual(normalizeNiuniuResults(records, { title: '测试剧', year: 2026, episode: 2 }), [])
+})
+
+test('标准 MacCMS Provider 使用各自接口与播放标识', async () => {
   const cases = [
     [createBaofengProvider, 'baofeng', '暴风资源', 'bfzym3u8'],
     [createYzy1080Provider, 'yzy1080', '1080影视', '1080zyk'],
     [createXinlangProvider, 'xinlang', '新浪资源', 'xlm3u8'],
+    [createFeifanProvider, 'feifan', '非凡资源', 'ffm3u8'],
+    [createZy360Provider, 'zy360', '360资源', '360zy'],
   ]
   for (const [factory, id, name, flag] of cases) {
     let requestedUrl
@@ -375,6 +397,23 @@ test('暴风、1080影视和新浪 Provider 使用各自接口与播放标识', 
     assert.equal(requestedUrl.searchParams.get('ac'), 'detail')
     assert.equal(requestedUrl.searchParams.get('wd'), '测试剧')
     assert.deepEqual(results, [{ title: '测试剧 · 第01集', url: 'https://media.example/01.m3u8', type: 'hls' }])
+  }
+})
+
+test('非凡与360资源只保留同年份的直连 HTTPS HLS，不接受解析页或 HTTP', async () => {
+  for (const [factory, flag] of [[createFeifanProvider, 'ffm3u8'], [createZy360Provider, '360zy']]) {
+    const provider = factory({
+      fetch: async () => Response.json({ list: [{
+        vod_name: '测试电影',
+        vod_year: '2025',
+        vod_play_from: `parser$$$${flag}`,
+        vod_play_url: '播放$https://example.com/parse?url=123$$$正片$https://media.example/movie.m3u8#备份$http://media.example/movie.m3u8#解析$https://example.com/parse?url=123',
+      }] }),
+    })
+    assert.deepEqual(await provider.search({ title: '测试电影', year: 2024 }), [])
+    assert.deepEqual(await provider.search({ title: '测试电影', year: 2025 }), [
+      { title: '测试电影 · 正片', url: 'https://media.example/movie.m3u8', type: 'hls' },
+    ])
   }
 })
 
