@@ -30,6 +30,8 @@ export default function MediaLibraryConfigPage() {
   const [doubanKeyword, setDoubanKeyword] = useState('')
   const [doubanResults, setDoubanResults] = useState<DoubanSearchResult[]>([])
   const [doubanSearching, setDoubanSearching] = useState(false)
+  const [doubanSearched, setDoubanSearched] = useState(false)
+  const [doubanSearchError, setDoubanSearchError] = useState('')
   const [importingId, setImportingId] = useState<string>()
   const may = useCallback((operation: 'read' | 'create' | 'write' | 'unlink') => can('media.library.manage') || can(`media.library.${operation}`), [can])
 
@@ -103,8 +105,11 @@ export default function MediaLibraryConfigPage() {
     const keyword = value.trim()
     if (!keyword) return message.warning('请输入影视名称')
     setDoubanSearching(true)
+    setDoubanSearched(true)
+    setDoubanResults([])
+    setDoubanSearchError('')
     try { setDoubanResults(await mediaLibraryApi.searchDouban(keyword)) }
-    catch (error) { message.error((error as Error).message) }
+    catch (error) { setDoubanSearchError((error as Error).message); message.error((error as Error).message) }
     finally { setDoubanSearching(false) }
   }
 
@@ -164,7 +169,7 @@ export default function MediaLibraryConfigPage() {
     </Drawer>
 
     <Drawer title="从豆瓣添加" width={680} open={doubanOpen} onClose={() => setDoubanOpen(false)} destroyOnClose>
-      <Input.Search autoFocus allowClear value={doubanKeyword} placeholder="输入电影或电视剧名称" enterButton="搜索豆瓣" loading={doubanSearching} onChange={(event) => setDoubanKeyword(event.target.value)} onSearch={(value) => void searchDouban(value)} />
+      <Input.Search autoFocus allowClear value={doubanKeyword} placeholder="输入电影或电视剧名称" enterButton="搜索豆瓣" loading={doubanSearching} onChange={(event) => { setDoubanKeyword(event.target.value); setDoubanSearched(false); setDoubanSearchError('') }} onSearch={(value) => void searchDouban(value)} />
       <div className="media-douban-results">
         {doubanResults.length ? doubanResults.map((result) => <div className="media-douban-result" key={`${result.mediaType}-${result.externalId}`}>
           <img src={`/api/media-library/admin/poster?url=${encodeURIComponent(result.posterUrl || '')}`} alt="" />
@@ -174,7 +179,7 @@ export default function MediaLibraryConfigPage() {
             {result.subtitle && <span>{result.subtitle}</span>}
           </div>
           <Button type={result.inLibrary ? 'default' : 'primary'} disabled={result.inLibrary} loading={importingId === result.externalId} onClick={() => void importDouban(result)}>{result.inLibrary ? '已入库' : '同步入库'}</Button>
-        </div>) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={doubanSearching ? '正在搜索' : '输入名称搜索豆瓣'} />}
+        </div>) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={doubanSearching ? '正在搜索' : doubanSearchError || (doubanSearched ? '未找到匹配的影视' : '输入名称搜索豆瓣')} />}
       </div>
     </Drawer>
   </div>
