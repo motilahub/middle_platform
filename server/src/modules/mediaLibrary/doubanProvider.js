@@ -194,20 +194,36 @@ export function createDoubanProvider(options = {}) {
     const keyword = String(value || '').trim().slice(0, 100)
     if (!keyword) throw providerError('请输入影视名称', 400)
     const safeLimit = Math.min(20, Math.max(1, Number(limit) || 10))
-    const body = await fetchJson('https://movie.douban.com/j/subject_suggest', { q: keyword }, '豆瓣搜索', 'https://movie.douban.com/')
-    const candidates = normalizeDoubanSearch(body).slice(0, safeLimit)
-    const settled = await Promise.allSettled(candidates.map(async (candidate) => {
-      const detail = await fetchJson(`/rexxar/api/v2/movie/${candidate.externalId}`, {}, '豆瓣条目')
-      const item = normalizeDoubanDetail(detail, detail?.type)
-      return {
-        externalId: item.externalId,
-        mediaType: item.mediaType,
-        title: item.title,
-        year: item.year,
-        posterUrl: item.posterUrl,
-        rating: item.rating,
-        subtitle: item.metadata.subtitle,
-        sourceUrl: item.sourceUrl,
+    let candidates = []
+    let searchError
+    try {
+      const body = await fetchJson('/rexxar/api/v2/search', { q: keyword }, '豆瓣搜索')
+      if (body?.code) throw providerError(`豆瓣搜索暂不可用（${body.code}）`)
+      candidates = normalizeDoubanSearch(body)
+    } catch (error) { searchError = error }
+    if (!candidates.length) {
+      try {
+        const body = await fetchJson('https://movie.douban.com/j/subject_suggest', { q: keyword }, '豆瓣搜索', 'https://movie.douban.com/')
+        candidates = normalizeDoubanSearch(body)
+      } catch (error) { if (!searchError) throw error }
+    }
+    if (!candidates.length && searchError) throw searchError
+    const settled = await Promise.allSettled(candidates.slice(0, safeLimit).map(async (candidate) => {
+      try {
+        const detail = await fetchJson(`/rexxar/api/v2/movie/${candidate.externalId}`, {}, '豆瓣条目')
+        const item = normalizeDoubanDetail(detail, detail?.type)
+        return {
+          externalId: item.externalId,
+          mediaType: item.mediaType,
+          title: item.title,
+          year: item.year,
+          posterUrl: item.posterUrl,
+          rating: item.rating,
+          subtitle: item.metadata.subtitle,
+          sourceUrl: item.sourceUrl,
+        }
+      } catch {
+        return candidate
       }
     }))
     return settled.flatMap((entry) => entry.status === 'fulfilled' ? [entry.value] : [])

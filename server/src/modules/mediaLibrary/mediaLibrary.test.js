@@ -122,20 +122,47 @@ test('豆瓣详情可转换为手工入库数据', () => {
   assert.equal(item.ranking, null)
 })
 
-test('豆瓣 Provider 通过公开联想接口搜索并读取正式详情', async () => {
+test('豆瓣 Provider 优先通过移动端搜索并读取正式详情', async () => {
   const requestedUrls = []
   const provider = createDoubanProvider({
     fetch: async (url) => {
       requestedUrls.push(String(url))
-      if (String(url).includes('subject_suggest')) return new Response(JSON.stringify([{ id: '25754848', title: '琅琊榜', type: 'movie', episode: '54' }]))
+      if (String(url).includes('/api/v2/search')) return Response.json({ subjects: { items: [
+        { target_type: 'tv', target: { id: '25754848', title: '琅琊榜', year: '2015' } },
+        { target_type: 'book', target: { id: '2326571', title: '琅琊榜' } },
+      ] } })
       return new Response(JSON.stringify({ id: '25754848', type: 'tv', title: '琅琊榜', year: '2015', episodes_count: 54, rating: { value: 9.4 } }))
     },
   })
   const results = await provider.search('琅琊榜')
-  assert.match(requestedUrls[0], /movie\.douban\.com\/j\/subject_suggest/)
+  assert.match(requestedUrls[0], /m\.douban\.com\/rexxar\/api\/v2\/search/)
   assert.match(requestedUrls[1], /rexxar\/api\/v2\/movie\/25754848/)
+  assert.equal(requestedUrls.length, 2)
   assert.equal(results[0].mediaType, 'tv')
   assert.equal(results[0].rating, 9.4)
+})
+
+test('豆瓣移动端搜索受限时回退联想接口，详情不可用仍显示基础信息', async () => {
+  const provider = createDoubanProvider({
+    fetch: async (url) => {
+      if (String(url).includes('/api/v2/search')) return new Response('', { status: 403 })
+      if (String(url).includes('subject_suggest')) return Response.json([{ id: '25754848', title: '琅琊榜', type: 'movie', episode: '54' }])
+      return new Response('', { status: 503 })
+    },
+  })
+  const results = await provider.search('琅琊榜')
+  assert.deepEqual(results.map(({ externalId, mediaType, title }) => ({ externalId, mediaType, title })), [
+    { externalId: '25754848', mediaType: 'tv', title: '琅琊榜' },
+  ])
+})
+
+test('豆瓣移动端受限且联想接口返回空时明确报错', async () => {
+  const provider = createDoubanProvider({
+    fetch: async (url) => String(url).includes('/api/v2/search')
+      ? new Response('', { status: 403 })
+      : Response.json([]),
+  })
+  await assert.rejects(provider.search('测试影片'), /豆瓣搜索返回 403/)
 })
 
 test('影视库同步合并并发请求并按类型各读取最多五页', async () => {

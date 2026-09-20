@@ -8,6 +8,8 @@ import {
   MutedFilled,
   PauseCircleOutlined,
   PlayCircleOutlined,
+  RotateLeftOutlined,
+  RotateRightOutlined,
   ShareAltOutlined,
   SoundFilled,
   StepBackwardOutlined,
@@ -35,6 +37,7 @@ type SafariVideoElement = HTMLVideoElement & {
   webkitExitFullscreen?: () => void
   webkitShowPlaybackTargetPicker?: () => void
 }
+type LockableOrientation = ScreenOrientation & { lock?: (orientation: 'landscape') => Promise<void> }
 
 export type PlaybackMode = 'auto' | 'hls' | 'direct'
 type PlayerStatus = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'error'
@@ -47,6 +50,8 @@ export interface VideoPlayerProps {
   mode?: PlaybackMode
   autoPlay?: boolean
   reloadKey?: number
+  resumeKey?: string
+  sourceKey?: string
   presentationReceiver?: boolean
   topRightContent?: ReactNode
   sideContent?: ReactNode
@@ -99,6 +104,8 @@ export default function VideoPlayer({
   mode = 'auto',
   autoPlay = true,
   reloadKey = 0,
+  resumeKey,
+  sourceKey,
   presentationReceiver = false,
   topRightContent,
   sideContent,
@@ -121,6 +128,10 @@ export default function VideoPlayer({
   const onEndedRef = useRef(onEnded)
   const reportedErrorSourceRef = useRef('')
   const controlsHideTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const lastLoadedSourceRef = useRef<{ source: string; key: string; sourceKey?: string }>()
+  const lastPlaybackPositionRef = useRef(0)
+  const pendingResumeRef = useRef<number>()
+  const orientationLockedRef = useRef(false)
   const [activeSource, setActiveSource] = useState('')
   const [status, setStatus] = useState<PlayerStatus>('idle')
   const [isPlaying, setIsPlaying] = useState(false)
@@ -137,6 +148,7 @@ export default function VideoPlayer({
   const [controlsVisible, setControlsVisible] = useState(true)
   const [volumeOpen, setVolumeOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const [orientationLocked, setOrientationLocked] = useState(false)
 
   useEffect(() => {
     onPlaybackErrorRef.current = onPlaybackError
@@ -172,6 +184,30 @@ export default function VideoPlayer({
     setError(text)
     setStatus('error')
     onPlaybackErrorRef.current?.(sourceUrl, text)
+  }, [])
+
+  const restorePlaybackPosition = useCallback((video: HTMLVideoElement) => {
+    const previousTime = pendingResumeRef.current
+    if (!previousTime) return
+    const seekable = video.seekable
+    let target = previousTime
+    if (seekable.length) {
+      const range = Array.from({ length: seekable.length }, (_, index) => ({ start: seekable.start(index), end: seekable.end(index) }))
+        .find(({ start, end }) => previousTime >= start && previousTime <= end)
+      const nearest = range || (previousTime < seekable.start(0)
+        ? { start: seekable.start(0), end: seekable.end(0) }
+        : { start: seekable.start(seekable.length - 1), end: seekable.end(seekable.length - 1) })
+      target = Math.max(nearest.start, Math.min(previousTime, Math.max(nearest.start, nearest.end - 0.5)))
+    } else if (Number.isFinite(video.duration) && video.duration > 0) {
+      target = Math.min(previousTime, Math.max(0, video.duration - 0.5))
+    } else return
+    try {
+      video.currentTime = target
+      pendingResumeRef.current = undefined
+      setCurrentTime(target)
+    } catch {
+      // Some HLS sources expose seekable ranges only after the first segment arrives.
+    }
   }, [])
 
   const loadSource = useCallback(async (rawSource: string) => {
@@ -242,13 +278,22 @@ export default function VideoPlayer({
   }, [autoPlay, mode, reportPlaybackError, resetVideo])
 
   useEffect(() => {
+    const previous = lastLoadedSourceRef.current
+    const previousTime = videoRef.current?.currentTime
+    const resumeTime = typeof previousTime === 'number' && Number.isFinite(previousTime) && (previousTime > 0 || !videoRef.current?.error)
+      ? previousTime : lastPlaybackPositionRef.current
+    pendingResumeRef.current = resumeKey && source && previous?.key === resumeKey && (previous.source !== source || previous.sourceKey !== sourceKey) && !videoRef.current?.ended
+      ? resumeTime
+      : undefined
+    lastLoadedSourceRef.current = resumeKey && source ? { source, key: resumeKey, sourceKey } : undefined
+    lastPlaybackPositionRef.current = 0
     if (source) void loadSource(source)
     else {
       resetVideo()
       setError('')
       setStatus('idle')
     }
-  }, [loadSource, reloadKey, resetVideo, source])
+  }, [loadSource, reloadKey, resetVideo, resumeKey, source, sourceKey])
 
   useEffect(() => () => {
     if (videoClickTimerRef.current) clearTimeout(videoClickTimerRef.current)
@@ -263,6 +308,17 @@ export default function VideoPlayer({
       }
     }
     hlsRef.current?.destroy()
+    if (orientationLockedRef.current) {
+      orientationLockedRef.current = false
+      try { screen.orientation?.unlock() } catch { /* Browser may already have released the lock. */ }
+    }
+  }, [])
+
+  const releaseOrientation = useCallback(() => {
+    if (!orientationLockedRef.current) return
+    orientationLockedRef.current = false
+    try { screen.orientation?.unlock() } catch { /* Browser may already have released the lock. */ }
+    setOrientationLocked(false)
   }, [])
 
   const keepControlsVisible = useCallback(() => {
@@ -302,7 +358,7 @@ export default function VideoPlayer({
       const fullscreen = fullscreenElement() === stageRef.current
       setIsFullscreen(fullscreen)
       if (fullscreen) scheduleControlsHide()
-      else keepControlsVisible()
+      else { releaseOrientation(); keepControlsVisible() }
     }
     document.addEventListener('fullscreenchange', handleFullscreenChange)
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
@@ -310,7 +366,7 @@ export default function VideoPlayer({
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
     }
-  }, [keepControlsVisible, scheduleControlsHide])
+  }, [keepControlsVisible, releaseOrientation, scheduleControlsHide])
 
   useEffect(() => {
     if (isFullscreen && isPlaying) scheduleControlsHide()
@@ -409,6 +465,24 @@ export default function VideoPlayer({
     }
   }
 
+  const toggleLandscape = async () => {
+    const orientation = screen.orientation as LockableOrientation | undefined
+    if (!orientation?.lock) return
+    if (orientationLockedRef.current) { releaseOrientation(); return }
+    if (fullscreenElement() !== stageRef.current) {
+      await toggleFullscreen()
+      if (fullscreenElement() !== stageRef.current) return
+    }
+    try {
+      await orientation.lock('landscape')
+      if (fullscreenElement() !== stageRef.current) { orientation.unlock(); return }
+      orientationLockedRef.current = true
+      setOrientationLocked(true)
+    } catch {
+      message.info('无法锁定横屏，请开启设备自动旋转后转动设备')
+    }
+  }
+
   const handleVideoClick = () => {
     if (videoClickTimerRef.current) clearTimeout(videoClickTimerRef.current)
     videoClickTimerRef.current = setTimeout(() => {
@@ -500,7 +574,9 @@ export default function VideoPlayer({
         preload="metadata"
         onClick={presentationReceiver ? undefined : handleVideoClick}
         onDoubleClick={presentationReceiver ? undefined : handleVideoDoubleClick}
+        onLoadedMetadata={(event) => restorePlaybackPosition(event.currentTarget)}
         onCanPlay={(event) => {
+          restorePlaybackPosition(event.currentTarget)
           if (event.currentTarget.paused && status !== 'paused') setStatus('ready')
           if (!presentationReceiver && !autoPlayPendingRef.current) return
           void event.currentTarget.play().then(() => {
@@ -518,9 +594,15 @@ export default function VideoPlayer({
           if (videoRef.current?.getAttribute('src') || hlsRef.current) setStatus('paused')
         }}
         onEnded={() => { setIsPlaying(false); setStatus('paused'); if (activeSource && !presentation) onEndedRef.current?.() }}
-        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+        onTimeUpdate={(event) => {
+          const time = event.currentTarget.currentTime
+          if (Number.isFinite(time)) lastPlaybackPositionRef.current = time
+          setCurrentTime(time)
+        }}
+        onSeeking={(event) => { lastPlaybackPositionRef.current = event.currentTarget.currentTime }}
         onDurationChange={(event) => {
           setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)
+          restorePlaybackPosition(event.currentTarget)
           syncBufferedRanges(event.currentTarget)
         }}
         onProgress={(event) => syncBufferedRanges(event.currentTarget)}
@@ -532,7 +614,7 @@ export default function VideoPlayer({
         }}
       />
       {showTitleOverlay && activeSource && title && <div className="video-player-title-overlay" title={title}>{title}</div>}
-      {!presentationReceiver && !presentation && activeSource && status === 'paused' && !videoRef.current?.ended && <div className="video-player-paused-indicator" aria-label="已暂停"><PauseCircleOutlined /></div>}
+      {!presentationReceiver && !presentation && activeSource && status === 'paused' && !videoRef.current?.ended && <div className="video-player-paused-indicator" aria-label="已暂停"><PlayCircleOutlined /></div>}
       {!activeSource && <div className="video-player-placeholder" aria-hidden="true"><PlayCircleOutlined /></div>}
       {presentation && <div className="video-player-presented-message" role="status" aria-live="polite">
         <DesktopOutlined />
@@ -565,6 +647,7 @@ export default function VideoPlayer({
             const player = videoRef.current
             if (!player || !Number.isFinite(player.duration)) return
             player.currentTime = Number(event.target.value)
+            lastPlaybackPositionRef.current = player.currentTime
             setCurrentTime(player.currentTime)
           }} />
         </div>
@@ -580,6 +663,8 @@ export default function VideoPlayer({
           <option value={0.5}>0.5x</option><option value={0.75}>0.75x</option><option value={1}>1x</option>
           <option value={1.25}>1.25x</option><option value={1.5}>1.5x</option><option value={2}>2x</option>
         </select>
+        {!presentationReceiver && !usesNativeSafariFullscreen() && typeof (screen.orientation as LockableOrientation | undefined)?.lock === 'function' && window.matchMedia('(pointer: coarse)').matches &&
+          <Tooltip title={orientationLocked ? '恢复自动旋转' : '横屏播放'}><Button type="text" shape="circle" className="video-player-orientation" icon={orientationLocked ? <RotateLeftOutlined /> : <RotateRightOutlined />} aria-label={orientationLocked ? '恢复自动旋转' : '横屏播放'} disabled={!activeSource} onClick={() => void toggleLandscape()} /></Tooltip>}
         <Tooltip title={isFullscreen ? '退出全屏' : '全屏'}><Button type="text" shape="circle" icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />} disabled={!activeSource} onClick={() => void toggleFullscreen()} /></Tooltip>
       </div>}
     </section>
