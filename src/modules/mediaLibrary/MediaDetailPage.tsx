@@ -1,5 +1,5 @@
-import { App, Button, Empty, InputNumber, Pagination, Spin, Tag, Tooltip, Typography } from 'antd'
-import { ArrowLeftOutlined, CloudDownloadOutlined, ExportOutlined, LeftOutlined, PlayCircleOutlined, RightOutlined, StarFilled } from '@ant-design/icons'
+import { App, Button, Empty, InputNumber, Modal, Pagination, Spin, Tag, Tooltip, Typography } from 'antd'
+import { ArrowLeftOutlined, CloseOutlined, CloudDownloadOutlined, ExportOutlined, LeftOutlined, PlayCircleOutlined, RightOutlined, StarFilled } from '@ant-design/icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { SystemFooter, SystemHeader } from '../../platform/layout/SystemChrome'
@@ -18,7 +18,6 @@ export default function MediaDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { message } = App.useApp()
   const { darkMode, setDarkMode } = useMediaTheme()
-  const playerRef = useRef<HTMLElement>(null)
   const episodeGridRef = useRef<HTMLDivElement>(null)
   const episodePageSizeRef = useRef(20)
   const libraryReturnTo = useRef(
@@ -46,6 +45,7 @@ export default function MediaDetailPage() {
   const [playingEpisode, setPlayingEpisode] = useState<number>()
   const [playerReloadKey, setPlayerReloadKey] = useState(0)
   const [linePanelOpen, setLinePanelOpen] = useState(false)
+  const [floatingOpen, setFloatingOpen] = useState(false)
 
   useEffect(() => () => clearTimeout(linePanelTimerRef.current), [])
 
@@ -89,6 +89,16 @@ export default function MediaDetailPage() {
     scheduleLinePanelClose(5000)
   }
 
+  const closeFloatingPlayer = () => {
+    playableSearchSequenceRef.current += 1
+    setPlayableLoading(false)
+    setFloatingOpen(false)
+    setPlayableResults([])
+    setActivePlayableId('')
+    setPlayingEpisode(undefined)
+    closeLinePanel()
+  }
+
   useEffect(() => {
     const mediaId = Number(id)
     if (!Number.isSafeInteger(mediaId)) { setLoading(false); return }
@@ -116,6 +126,7 @@ export default function MediaDetailPage() {
     const targetEpisode = item.mediaType === 'tv' ? (nextEpisode || episode) : undefined
     const searchSequence = ++playableSearchSequenceRef.current
     setPlayableLoading(true)
+    if (!autoAdvance) setFloatingOpen(true)
     try {
       const output = await mediaLibraryApi.searchPlayable(item.id, targetEpisode)
       if (searchSequence !== playableSearchSequenceRef.current) return
@@ -124,6 +135,7 @@ export default function MediaDetailPage() {
         message.info('下一集暂无在线播放资源')
         return
       }
+      if (!first) setFloatingOpen(false)
       if (autoAdvance && targetEpisode) selectEpisode(targetEpisode)
       setPlayableResults(output.results)
       setFailedPlayableUrls([])
@@ -132,12 +144,12 @@ export default function MediaDetailPage() {
       setPlayingEpisode(first ? targetEpisode : undefined)
       setPlayerReloadKey((value) => value + 1)
       if (!first) message.warning(output.message || '暂无在线播放资源')
-      if (!autoAdvance) requestAnimationFrame(() => playerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
     } catch (error) {
       if (searchSequence !== playableSearchSequenceRef.current) return
       if (!autoAdvance) {
         setPlayableResults([])
         setActivePlayableId('')
+        setFloatingOpen(false)
       }
       message.error((error as Error).message)
     } finally {
@@ -185,6 +197,31 @@ export default function MediaDetailPage() {
   const episodes = selectableEpisodeCount
     ? Array.from({ length: Math.min(episodesPerPage, selectableEpisodeCount - firstEpisode + 1) }, (_, index) => firstEpisode + index)
     : []
+  const player = <div className={`media-detail-player${playableLoading ? ' is-searching' : ''}`}>
+    <VideoPlayer
+      source={activePlayable?.url}
+      title={`${item.title}${playingEpisode ? ` 第${String(playingEpisode).padStart(2, '0')}集` : ''}`}
+      showTitleOverlay
+      mode={activePlayable?.type || 'auto'}
+      reloadKey={playerReloadKey}
+      onPlaybackError={handlePlaybackError}
+      onEnded={item.mediaType === 'tv' && playingEpisode && playingEpisode < lastEpisode
+        ? () => { void playOnline(playingEpisode + 1, true) }
+        : undefined}
+      onPreviousEpisode={item.mediaType === 'tv' ? () => { if (playingEpisode && playingEpisode > 1) selectAndPlayEpisode(playingEpisode - 1) } : undefined}
+      onNextEpisode={item.mediaType === 'tv' ? () => { if (playingEpisode && playingEpisode < lastEpisode) selectAndPlayEpisode(playingEpisode + 1) } : undefined}
+      canPreviousEpisode={Boolean(playingEpisode && playingEpisode > 1 && !playableLoading)}
+      canNextEpisode={Boolean(playingEpisode && playingEpisode < lastEpisode && !playableLoading)}
+      sideContent={sourceOptions.length ? <aside className={`video-player-line-panel${linePanelOpen ? ' is-open' : ''}`} aria-label="播放线路" onMouseEnter={openLinePanel} onMouseMove={linePanelOpen ? openLinePanel : undefined} onMouseLeave={() => scheduleLinePanelClose(800)} onFocusCapture={(event) => { if (lineOptionsRef.current?.contains(event.target)) { clearTimeout(linePanelTimerRef.current); setLinePanelOpen(true) } }} onBlurCapture={(event) => { if (!lineOptionsRef.current?.contains(event.relatedTarget)) scheduleLinePanelClose(800) }} onKeyDown={(event) => { if (event.key === 'Escape') { closeLinePanel(); lineToggleRef.current?.focus() } }}>
+        <Tooltip title={linePanelOpen ? '收起线路' : '展开线路'}><Button ref={lineToggleRef} type="text" className="video-player-line-toggle" icon={linePanelOpen ? <RightOutlined /> : <LeftOutlined />} aria-label={linePanelOpen ? '收起线路' : '展开线路'} aria-expanded={linePanelOpen} onClick={() => linePanelOpen ? closeLinePanel() : openLinePanel()} /></Tooltip>
+        <div className="video-player-line-list">
+          <strong>播放线路</strong>
+          <div ref={lineOptionsRef} className="video-player-line-options">{linePanelOpen && sourceOptions.map((option) => <Button key={option.value} type="text" className={activePlayableId === option.value ? 'is-active' : ''} title={option.label} aria-pressed={activePlayableId === option.value} onClick={() => { setActivePlayableId(option.value); setPlayerReloadKey((key) => key + 1); closeLinePanel(); lineToggleRef.current?.focus() }}>{option.label}</Button>)}</div>
+        </div>
+      </aside> : undefined}
+    />
+    {playableLoading && <div className="media-detail-player-searching"><Spin /></div>}
+  </div>
   return <MediaThemeProvider darkMode={darkMode}><div className={`media-library-page${darkMode ? ' is-dark' : ''}`}>
     <SystemHeader actions={themeToggle} />
     <main className="media-detail-main">
@@ -213,43 +250,22 @@ export default function MediaDetailPage() {
 
       {item.mediaType === 'tv' && <section className="media-detail-episodes">
         <Typography.Title level={3}>选集</Typography.Title>
-        {episodes.length
-          ? <><div ref={episodeGridRef} className="media-episode-grid">{episodes.map((number) => <Button key={number} type={episode === number ? 'primary' : 'default'} title={`第 ${number} 集`} onClick={() => selectAndPlayEpisode(number)}>{number}</Button>)}</div>
-            {selectableEpisodeCount && selectableEpisodeCount > episodesPerPage && <Pagination className="media-episode-pagination" size="small" responsive current={currentEpisodePage} pageSize={episodesPerPage} total={selectableEpisodeCount} showSizeChanger={false} onChange={setEpisodePage} />}</>
-          : <InputNumber min={1} max={9999} value={episode} onChange={(value) => selectAndPlayEpisode(value || 1)} aria-label="集数" addonBefore="第" addonAfter="集" />}
         <div className="media-detail-actions">
           <Button type="primary" icon={<PlayCircleOutlined />} loading={playableLoading} onClick={() => void playOnline(episode)}>在线播放</Button>
           <Button icon={<CloudDownloadOutlined />} onClick={() => openPanResources(episode)}>网盘资源</Button>
         </div>
+        {episodes.length
+          ? <><div ref={episodeGridRef} className="media-episode-grid">{episodes.map((number) => <Button key={number} type={episode === number ? 'primary' : 'default'} title={`第 ${number} 集`} onClick={() => selectAndPlayEpisode(number)}>{number}</Button>)}</div>
+            {selectableEpisodeCount && selectableEpisodeCount > episodesPerPage && <Pagination className="media-episode-pagination" size="small" responsive current={currentEpisodePage} pageSize={episodesPerPage} total={selectableEpisodeCount} showSizeChanger={false} onChange={setEpisodePage} />}</>
+          : <InputNumber min={1} max={9999} value={episode} onChange={(value) => selectAndPlayEpisode(value || 1)} aria-label="集数" addonBefore="第" addonAfter="集" />}
       </section>}
 
-      <section ref={playerRef} className={`media-detail-player${playableLoading ? ' is-searching' : ''}`}>
-        <VideoPlayer
-          source={activePlayable?.url}
-          title={`${item.title}${playingEpisode ? ` 第${String(playingEpisode).padStart(2, '0')}集` : ''}`}
-          showTitleOverlay
-          mode={activePlayable?.type || 'auto'}
-          reloadKey={playerReloadKey}
-          onPlaybackError={handlePlaybackError}
-          onEnded={item.mediaType === 'tv' && playingEpisode && playingEpisode < lastEpisode
-            ? () => { void playOnline(playingEpisode + 1, true) }
-            : undefined}
-          onPreviousEpisode={item.mediaType === 'tv' ? () => { if (playingEpisode && playingEpisode > 1) selectAndPlayEpisode(playingEpisode - 1) } : undefined}
-          onNextEpisode={item.mediaType === 'tv' ? () => { if (playingEpisode && playingEpisode < lastEpisode) selectAndPlayEpisode(playingEpisode + 1) } : undefined}
-          canPreviousEpisode={Boolean(playingEpisode && playingEpisode > 1 && !playableLoading)}
-          canNextEpisode={Boolean(playingEpisode && playingEpisode < lastEpisode && !playableLoading)}
-          sideContent={sourceOptions.length ? <aside className={`video-player-line-panel${linePanelOpen ? ' is-open' : ''}`} aria-label="播放线路" onMouseEnter={openLinePanel} onMouseMove={linePanelOpen ? openLinePanel : undefined} onMouseLeave={() => scheduleLinePanelClose(800)} onFocusCapture={(event) => { if (lineOptionsRef.current?.contains(event.target)) { clearTimeout(linePanelTimerRef.current); setLinePanelOpen(true) } }} onBlurCapture={(event) => { if (!lineOptionsRef.current?.contains(event.relatedTarget)) scheduleLinePanelClose(800) }} onKeyDown={(event) => { if (event.key === 'Escape') { closeLinePanel(); lineToggleRef.current?.focus() } }}>
-            <Tooltip title={linePanelOpen ? '收起线路' : '展开线路'}><Button ref={lineToggleRef} type="text" className="video-player-line-toggle" icon={linePanelOpen ? <RightOutlined /> : <LeftOutlined />} aria-label={linePanelOpen ? '收起线路' : '展开线路'} aria-expanded={linePanelOpen} onClick={() => linePanelOpen ? closeLinePanel() : openLinePanel()} /></Tooltip>
-            <div className="video-player-line-list">
-              <strong>播放线路</strong>
-              <div ref={lineOptionsRef} className="video-player-line-options">{linePanelOpen && sourceOptions.map((option) => <Button key={option.value} type="text" className={activePlayableId === option.value ? 'is-active' : ''} title={option.label} aria-pressed={activePlayableId === option.value} onClick={() => { setActivePlayableId(option.value); setPlayerReloadKey((key) => key + 1); closeLinePanel(); lineToggleRef.current?.focus() }}>{option.label}</Button>)}</div>
-            </div>
-          </aside> : undefined}
-        />
-        {playableLoading && <div className="media-detail-player-searching"><Spin /></div>}
-      </section>
     </main>
     <SystemFooter />
     <ResourceDrawer item={item} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+    <Modal className="media-floating-player" open={floatingOpen} footer={null} closable={false} width={960} centered onCancel={closeFloatingPlayer} destroyOnClose styles={{ mask: { backgroundColor: '#000' } }}>
+      <div className="media-floating-player-toolbar"><Button type="text" icon={<CloseOutlined />} aria-label="关闭播放器" title="关闭播放器" onClick={closeFloatingPlayer} /></div>
+      {floatingOpen && player}
+    </Modal>
   </div></MediaThemeProvider>
 }
