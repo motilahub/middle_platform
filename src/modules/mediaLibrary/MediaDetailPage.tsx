@@ -1,7 +1,7 @@
 import { App, Button, Empty, InputNumber, Pagination, Spin, Tag, Tooltip, Typography } from 'antd'
-import { ArrowLeftOutlined, CloudDownloadOutlined, ExportOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PlayCircleOutlined, StarFilled } from '@ant-design/icons'
+import { ArrowLeftOutlined, CloudDownloadOutlined, ExportOutlined, LeftOutlined, PlayCircleOutlined, RightOutlined, StarFilled } from '@ant-design/icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { SystemFooter, SystemHeader } from '../../platform/layout/SystemChrome'
 import VideoPlayer from '../videoPlayer/VideoPlayer'
 import { mediaLibraryApi } from './api'
@@ -11,15 +11,20 @@ import { episodeLabel, episodeLimit } from './episode'
 import ResourceDrawer from './ResourceDrawer'
 import type { MediaItem, PlayableResource } from './types'
 
-const EPISODES_PER_PAGE = 20
-
 export default function MediaDetailPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const { message } = App.useApp()
   const { darkMode, setDarkMode } = useMediaTheme()
   const playerRef = useRef<HTMLElement>(null)
+  const episodeGridRef = useRef<HTMLDivElement>(null)
+  const episodePageSizeRef = useRef(20)
+  const libraryReturnTo = useRef(
+    typeof location.state?.libraryReturnTo === 'string' && /^\/media-library(?:\?(?:[^#]*))?$/.test(location.state.libraryReturnTo)
+      ? location.state.libraryReturnTo : '/media-library',
+  )
   const lineOptionsRef = useRef<HTMLDivElement>(null)
   const lineToggleRef = useRef<HTMLButtonElement>(null)
   const playableSearchSequenceRef = useRef(0)
@@ -30,7 +35,9 @@ export default function MediaDetailPage() {
     const value = Number(searchParams.get('episode'))
     return Number.isSafeInteger(value) && value > 0 && value <= 9999 ? value : 1
   })
-  const [episodePage, setEpisodePage] = useState(() => Math.ceil(episode / EPISODES_PER_PAGE))
+  const episodeRef = useRef(episode)
+  const [episodesPerPage, setEpisodesPerPage] = useState(20)
+  const [episodePage, setEpisodePage] = useState(() => Math.ceil(episode / 20))
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [playableLoading, setPlayableLoading] = useState(false)
   const [playableResults, setPlayableResults] = useState<PlayableResource[]>([])
@@ -41,6 +48,29 @@ export default function MediaDetailPage() {
   const [linePanelOpen, setLinePanelOpen] = useState(false)
 
   useEffect(() => () => clearTimeout(linePanelTimerRef.current), [])
+
+  useEffect(() => {
+    const grid = episodeGridRef.current
+    if (!grid) return
+    const observer = new ResizeObserver(() => {
+      const style = getComputedStyle(grid)
+      const tileWidth = parseFloat(style.getPropertyValue('--episode-tile-width'))
+      const gap = parseFloat(style.columnGap)
+      if (!tileWidth || !Number.isFinite(gap)) return
+      const pageSize = Math.max(2, Math.floor((grid.clientWidth + gap) / (tileWidth + gap)) * 2)
+      const previous = episodePageSizeRef.current
+      if (previous === pageSize) return
+      episodePageSizeRef.current = pageSize
+      setEpisodePage((current) => {
+        const first = (current - 1) * previous + 1
+        const anchor = episodeRef.current >= first && episodeRef.current < first + previous ? episodeRef.current : first
+        return Math.floor((anchor - 1) / pageSize) + 1
+      })
+      setEpisodesPerPage(pageSize)
+    })
+    observer.observe(grid)
+    return () => observer.disconnect()
+  }, [item])
 
   const closeLinePanel = () => {
     clearTimeout(linePanelTimerRef.current)
@@ -67,8 +97,9 @@ export default function MediaDetailPage() {
 
   const selectEpisode = (value: number) => {
     const safeValue = Number.isSafeInteger(value) && value > 0 ? Math.min(value, 9999) : 1
+    episodeRef.current = safeValue
     setEpisode(safeValue)
-    setEpisodePage(Math.ceil(safeValue / EPISODES_PER_PAGE))
+    setEpisodePage(Math.ceil(safeValue / episodesPerPage))
     const nextParams = new URLSearchParams(searchParams)
     nextParams.set('episode', String(safeValue))
     setSearchParams(nextParams, { replace: true })
@@ -149,15 +180,15 @@ export default function MediaDetailPage() {
 
   const selectableEpisodeCount = item.mediaType === 'tv' ? episodeLimit(item) : null
   const lastEpisode = selectableEpisodeCount || 9999
-  const currentEpisodePage = selectableEpisodeCount ? Math.min(episodePage, Math.ceil(selectableEpisodeCount / EPISODES_PER_PAGE)) : 1
-  const firstEpisode = (currentEpisodePage - 1) * EPISODES_PER_PAGE + 1
+  const currentEpisodePage = selectableEpisodeCount ? Math.min(episodePage, Math.ceil(selectableEpisodeCount / episodesPerPage)) : 1
+  const firstEpisode = (currentEpisodePage - 1) * episodesPerPage + 1
   const episodes = selectableEpisodeCount
-    ? Array.from({ length: Math.min(EPISODES_PER_PAGE, selectableEpisodeCount - firstEpisode + 1) }, (_, index) => firstEpisode + index)
+    ? Array.from({ length: Math.min(episodesPerPage, selectableEpisodeCount - firstEpisode + 1) }, (_, index) => firstEpisode + index)
     : []
   return <MediaThemeProvider darkMode={darkMode}><div className={`media-library-page${darkMode ? ' is-dark' : ''}`}>
     <SystemHeader actions={themeToggle} />
     <main className="media-detail-main">
-      <Button className="media-detail-back" type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/media-library')}>返回影视库</Button>
+      <Button className="media-detail-back" type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(libraryReturnTo.current)}>返回影视库</Button>
       <section className="media-detail-overview">
         <div className="media-detail-poster">
           <MediaPoster item={item} alt={item.title} loading="eager" />
@@ -183,8 +214,8 @@ export default function MediaDetailPage() {
       {item.mediaType === 'tv' && <section className="media-detail-episodes">
         <Typography.Title level={3}>选集</Typography.Title>
         {episodes.length
-          ? <><div className="media-episode-grid">{episodes.map((number) => <Button key={number} type={episode === number ? 'primary' : 'default'} title={`第 ${number} 集`} onClick={() => selectAndPlayEpisode(number)}>{number}</Button>)}</div>
-            {selectableEpisodeCount && selectableEpisodeCount > EPISODES_PER_PAGE && <Pagination className="media-episode-pagination" size="small" responsive current={currentEpisodePage} pageSize={EPISODES_PER_PAGE} total={selectableEpisodeCount} showSizeChanger={false} onChange={setEpisodePage} />}</>
+          ? <><div ref={episodeGridRef} className="media-episode-grid">{episodes.map((number) => <Button key={number} type={episode === number ? 'primary' : 'default'} title={`第 ${number} 集`} onClick={() => selectAndPlayEpisode(number)}>{number}</Button>)}</div>
+            {selectableEpisodeCount && selectableEpisodeCount > episodesPerPage && <Pagination className="media-episode-pagination" size="small" responsive current={currentEpisodePage} pageSize={episodesPerPage} total={selectableEpisodeCount} showSizeChanger={false} onChange={setEpisodePage} />}</>
           : <InputNumber min={1} max={9999} value={episode} onChange={(value) => selectAndPlayEpisode(value || 1)} aria-label="集数" addonBefore="第" addonAfter="集" />}
         <div className="media-detail-actions">
           <Button type="primary" icon={<PlayCircleOutlined />} loading={playableLoading} onClick={() => void playOnline(episode)}>在线播放</Button>
@@ -208,7 +239,7 @@ export default function MediaDetailPage() {
           canPreviousEpisode={Boolean(playingEpisode && playingEpisode > 1 && !playableLoading)}
           canNextEpisode={Boolean(playingEpisode && playingEpisode < lastEpisode && !playableLoading)}
           sideContent={sourceOptions.length ? <aside className={`video-player-line-panel${linePanelOpen ? ' is-open' : ''}`} aria-label="播放线路" onMouseEnter={openLinePanel} onMouseMove={linePanelOpen ? openLinePanel : undefined} onMouseLeave={() => scheduleLinePanelClose(800)} onFocusCapture={(event) => { if (lineOptionsRef.current?.contains(event.target)) { clearTimeout(linePanelTimerRef.current); setLinePanelOpen(true) } }} onBlurCapture={(event) => { if (!lineOptionsRef.current?.contains(event.relatedTarget)) scheduleLinePanelClose(800) }} onKeyDown={(event) => { if (event.key === 'Escape') { closeLinePanel(); lineToggleRef.current?.focus() } }}>
-            <Tooltip title={linePanelOpen ? '收起线路' : '展开线路'}><Button ref={lineToggleRef} type="text" className="video-player-line-toggle" icon={linePanelOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />} aria-label={linePanelOpen ? '收起线路' : '展开线路'} aria-expanded={linePanelOpen} onClick={() => linePanelOpen ? closeLinePanel() : openLinePanel()} /></Tooltip>
+            <Tooltip title={linePanelOpen ? '收起线路' : '展开线路'}><Button ref={lineToggleRef} type="text" className="video-player-line-toggle" icon={linePanelOpen ? <RightOutlined /> : <LeftOutlined />} aria-label={linePanelOpen ? '收起线路' : '展开线路'} aria-expanded={linePanelOpen} onClick={() => linePanelOpen ? closeLinePanel() : openLinePanel()} /></Tooltip>
             <div className="video-player-line-list">
               <strong>播放线路</strong>
               <div ref={lineOptionsRef} className="video-player-line-options">{linePanelOpen && sourceOptions.map((option) => <Button key={option.value} type="text" className={activePlayableId === option.value ? 'is-active' : ''} title={option.label} aria-pressed={activePlayableId === option.value} onClick={() => { setActivePlayableId(option.value); setPlayerReloadKey((key) => key + 1); closeLinePanel(); lineToggleRef.current?.focus() }}>{option.label}</Button>)}</div>
