@@ -186,12 +186,9 @@ export function createMediaLibraryService(repository, doubanProvider, playableSe
       const episode = body.episode === undefined || body.episode === null ? null : positiveId(body.episode, '集数')
       if (item.mediaType === 'movie' && episode) throw Object.assign(new Error('电影不支持选择集数'), { status: 400 })
       if (item.mediaType === 'tv' && !episode) throw Object.assign(new Error('请选择集数'), { status: 400 })
-      const episodeLimit = item.availableEpisodeCount || item.totalEpisodeCount || item.episodeCount
+      const episodeLimit = item.totalEpisodeCount || item.availableEpisodeCount || item.episodeCount
       if (episodeLimit && episode > episodeLimit) {
-        const message = item.availableEpisodeCount
-          ? `当前仅更新至第 ${item.availableEpisodeCount} 集`
-          : `集数不能超过 ${episodeLimit}`
-        throw Object.assign(new Error(message), { status: 400 })
+        throw Object.assign(new Error(`集数不能超过 ${episodeLimit}`), { status: 400 })
       }
       return playableSearch.search({ mediaId: item.id, title: item.title, year: item.year, season: 1, episode })
     },
