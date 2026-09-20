@@ -569,6 +569,8 @@
 .media-admin-title strong { display: block; overflow: hidden; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .media-admin-title span { display: none; margin-top: 4px; color: #667085; font-size: 11px; }
 .media-douban-results { min-height: 280px; margin-top: 18px; }
+.media-resource-alert { margin-top: 12px; }
+.media-resource-no-poster { width: 54px; height: 76px; background: #eef2f7; }
 .media-douban-result { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 92px; padding: 12px 0; border-bottom: 1px solid #edf0f4; }
 .media-douban-result > img { width: 54px; height: 76px; border-radius: 3px; background: #eef2f7; object-fit: cover; }
 .media-douban-result-copy { min-width: 0; }

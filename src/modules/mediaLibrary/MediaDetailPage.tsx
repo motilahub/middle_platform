@@ -241,11 +241,16 @@ export default function MediaDetailPage() {
             <span className="media-detail-rating"><StarFilled /> {(item.rating || 0).toFixed(1)}</span>
             {item.year && <Tag>{item.year}</Tag>}
             <Tag>{item.mediaType === 'movie' ? '电影' : '电视剧'}</Tag>
+            {item.contentCategory === 'anime' && <Tag>动漫</Tag>}
+            {item.source === 'tmdb' && <Tag>TMDB</Tag>}
             {item.mediaType === 'tv' && episodeLabel(item) && <Tag>{episodeLabel(item)}</Tag>}
           </div>
           {item.metadata.subtitle && <Typography.Text type="secondary">{item.metadata.subtitle}</Typography.Text>}
+          {(item.genres?.length || item.countries?.length || item.runtimeMinutes) ? <Typography.Text type="secondary">{[item.genres?.join(' / '), item.countries?.join(' / '), item.runtimeMinutes && `${item.runtimeMinutes} 分钟`].filter(Boolean).join(' · ')}</Typography.Text> : null}
+          {item.directors?.length ? <div><Typography.Text type="secondary">导演：{item.directors.join('、')}</Typography.Text></div> : null}
+          {item.castMembers?.length ? <div><Typography.Text type="secondary">演员：{item.castMembers.slice(0, 8).join('、')}</Typography.Text></div> : null}
           {item.summary && <Typography.Paragraph className="media-detail-summary">{item.summary}</Typography.Paragraph>}
-          {item.sourceUrl && <Button className="media-detail-source" type="link" href={item.sourceUrl} target="_blank" rel="noreferrer" icon={<ExportOutlined />}>豆瓣条目</Button>}
+          {item.sourceUrl && <Button className="media-detail-source" type="link" href={item.sourceUrl} target="_blank" rel="noreferrer" icon={<ExportOutlined />}>{item.source === 'tmdb' ? 'TMDB 条目' : item.source === 'douban' ? '豆瓣条目' : '来源条目'}</Button>}
           {item.mediaType === 'movie' && <div className="media-detail-actions">
             <Button type="primary" loading={playableLoading} onClick={() => void playOnline()}>在线播放</Button>
             <Button onClick={() => openPanResources()}>网盘资源</Button>

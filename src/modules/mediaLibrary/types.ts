@@ -5,6 +5,7 @@ export interface MediaItem {
   source: string
   externalId: string
   mediaType: MediaType
+  contentCategory: 'general' | 'anime'
   title: string
   originalTitle?: string | null
   year?: number | null
@@ -12,6 +13,13 @@ export interface MediaItem {
   rating?: number | null
   ranking?: number | null
   summary?: string | null
+  releaseDate?: string | null
+  runtimeMinutes?: number | null
+  genres: string[]
+  countries: string[]
+  languages: string[]
+  directors: string[]
+  castMembers: string[]
   episodeCount?: number | null
   totalEpisodeCount?: number | null
   availableEpisodeCount?: number | null
@@ -37,12 +45,22 @@ export interface MediaItemInput {
   posterUrl?: string | null
   rating?: number | null
   summary?: string | null
+  contentCategory?: 'general' | 'anime'
+  releaseDate?: string | null
+  runtimeMinutes?: number | null
+  genres?: string[]
+  countries?: string[]
+  languages?: string[]
+  directors?: string[]
+  castMembers?: string[]
   totalEpisodeCount?: number | null
   availableEpisodeCount?: number | null
   sourceUrl?: string | null
 }
 
-export interface DoubanSearchResult {
+export interface ResourceSearchResult {
+  source: 'douban' | 'tmdb'
+  contentCategory?: 'general' | 'anime'
   externalId: string
   mediaType: MediaType
   title: string
@@ -52,6 +70,11 @@ export interface DoubanSearchResult {
   subtitle?: string
   sourceUrl: string
   inLibrary: boolean
+}
+
+export interface ResourceSearchResponse {
+  results: ResourceSearchResult[]
+  providers: Array<{ source: 'douban' | 'tmdb'; name: string; status: 'success' | 'failed' | 'unconfigured'; message?: string }>
 }
 
 export interface MediaSyncResponse {
