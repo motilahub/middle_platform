@@ -8,6 +8,7 @@ import {
   MutedFilled,
   PauseCircleOutlined,
   PlayCircleOutlined,
+  ShareAltOutlined,
   SoundFilled,
   StepBackwardOutlined,
   StepForwardOutlined,
@@ -135,6 +136,7 @@ export default function VideoPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [controlsVisible, setControlsVisible] = useState(true)
   const [volumeOpen, setVolumeOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
 
   useEffect(() => {
     onPlaybackErrorRef.current = onPlaybackError
@@ -329,6 +331,25 @@ export default function VideoPlayer({
     message.success('已退出投屏')
   }
 
+  const shareVideo = async () => {
+    try {
+      await navigator.share({ title: title || document.title, url: window.location.href })
+      setShareOpen(false)
+    } catch (error) {
+      if ((error as DOMException).name !== 'AbortError') message.error('无法打开系统分享，请尝试复制链接')
+    }
+  }
+
+  const copyVideoLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setShareOpen(false)
+      message.success('链接已复制')
+    } catch {
+      message.error('无法复制链接，请使用浏览器地址栏复制')
+    }
+  }
+
   const togglePlayback = async () => {
     const player = videoRef.current
     if (!player || !activeSource) return
@@ -480,7 +501,7 @@ export default function VideoPlayer({
         onClick={presentationReceiver ? undefined : handleVideoClick}
         onDoubleClick={presentationReceiver ? undefined : handleVideoDoubleClick}
         onCanPlay={(event) => {
-          if (event.currentTarget.paused) setStatus('ready')
+          if (event.currentTarget.paused && status !== 'paused') setStatus('ready')
           if (!presentationReceiver && !autoPlayPendingRef.current) return
           void event.currentTarget.play().then(() => {
             autoPlayPendingRef.current = false
@@ -504,13 +525,14 @@ export default function VideoPlayer({
         }}
         onProgress={(event) => syncBufferedRanges(event.currentTarget)}
         onVolumeChange={(event) => { setVolume(event.currentTarget.volume); setMuted(event.currentTarget.muted) }}
-        onWaiting={() => setStatus('loading')}
+        onWaiting={(event) => { if (!event.currentTarget.paused) setStatus('loading') }}
         onError={() => {
           if (hlsRef.current || !activeSource) return
           reportPlaybackError(activeSource, '视频加载失败，请确认地址有效且源站允许浏览器直接访问')
         }}
       />
       {showTitleOverlay && activeSource && title && <div className="video-player-title-overlay" title={title}>{title}</div>}
+      {!presentationReceiver && !presentation && activeSource && status === 'paused' && !videoRef.current?.ended && <div className="video-player-paused-indicator" aria-label="已暂停"><PauseCircleOutlined /></div>}
       {!activeSource && <div className="video-player-placeholder" aria-hidden="true"><PlayCircleOutlined /></div>}
       {presentation && <div className="video-player-presented-message" role="status" aria-live="polite">
         <DesktopOutlined />
@@ -520,6 +542,12 @@ export default function VideoPlayer({
       {status === 'loading' && !presentation && <div className="video-player-loading" aria-live="polite"><span /></div>}
       {!presentationReceiver && <div className="video-player-overlay-actions" aria-label="播放器操作" onMouseEnter={keepControlsVisible} onMouseMove={(event) => event.stopPropagation()} onMouseLeave={scheduleControlsHide}>
         {topRightContent}
+        <Popover rootClassName="video-player-share-popover" placement="bottomRight" trigger="click" open={shareOpen} onOpenChange={setShareOpen} getPopupContainer={() => stageRef.current || document.body} content={<div className="video-player-share-options">
+          {typeof navigator.share === 'function' && <Button type="text" onClick={() => void shareVideo()}>分享到应用</Button>}
+          <Button type="text" onClick={() => void copyVideoLink()}>复制链接</Button>
+        </div>}>
+          <Button type="text" shape="circle" icon={<ShareAltOutlined />} disabled={!activeSource} aria-label="分享" title="分享" />
+        </Popover>
         <Tooltip title={castingLabel}><Button type="text" shape="circle" icon={casting ? <DisconnectOutlined /> : <DesktopOutlined />} disabled={!activeSource} onClick={() => (presentation ? stopPresentation() : void presentVideo())} /></Tooltip>
       </div>}
       {!presentationReceiver && sideContent}
