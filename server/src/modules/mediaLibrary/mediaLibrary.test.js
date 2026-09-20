@@ -6,6 +6,131 @@ import { createNiuniuProvider, normalizeNiuniuResults } from './niuniuProvider.j
 import { createPlayableSearch } from './playableSearch.js'
 import { createPosterProxy } from './posterProxy.js'
 import { createMediaLibraryService } from './service.js'
+import { createTmdbProvider, normalizeTmdbDetail, normalizeTmdbSearch } from './tmdbProvider.js'
+import { createMediaLibraryRepository } from './repository.js'
+
+test('TMDB 搜索只返回影视并保留同名不同年份和动漫形态', () => {
+  const results = normalizeTmdbSearch({ results: [
+    { id: 27, media_type: 'movie', title: '同名电影', release_date: '2000-01-01', poster_path: '/abc.jpg', vote_average: 7.5 },
+    { id: 28, media_type: 'tv', name: '同名电影', first_air_date: '2025-02-02', overview: '动画剧集' },
+    { id: 29, media_type: 'person', name: '某演员' },
+  ] })
+  assert.deepEqual(results.map((entry) => [entry.source, entry.externalId, entry.year, entry.mediaType]), [
+    ['tmdb', '27', 2000, 'movie'], ['tmdb', '28', 2025, 'tv'],
+  ])
+  assert.equal(results[0].posterUrl, 'https://image.tmdb.org/t/p/w500/abc.jpg')
+  assert.equal(results[1].posterUrl, null)
+})
+
+test('TMDB 详情映射标准字段及动漫剧集总数', () => {
+  const item = normalizeTmdbDetail({
+    id: 28, name: '动漫剧集', original_name: 'Anime', first_air_date: '2025-03-04', number_of_episodes: 24,
+    episode_run_time: [23], genres: [{ id: 16, name: '动画' }],
+    production_countries: [{ name: '日本' }], spoken_languages: [{ name: '日语' }],
+    created_by: [{ name: '创作者' }], credits: { cast: [{ name: '声优' }] },
+  }, 'tv')
+  assert.equal(item.contentCategory, 'anime')
+  assert.equal(item.mediaType, 'tv')
+  assert.equal(item.totalEpisodeCount, 24)
+  assert.equal(item.availableEpisodeCount, null)
+  assert.equal(item.releaseDate, '2025-03-04')
+  assert.equal(item.runtimeMinutes, 23)
+  assert.deepEqual(item.directors, ['创作者'])
+  assert.deepEqual(item.castMembers, ['声优'])
+})
+
+test('TMDB 使用服务端凭据获取搜索和详情，错误不泄漏凭据', async () => {
+  const requests = []
+  const provider = createTmdbProvider({ accessToken: 'test-secret', apiKey: '', fetch: async (url, options) => {
+    requests.push({ url: new URL(url), options })
+    if (String(url).includes('search/multi')) return Response.json({ results: [{ id: 10, title: '电影', media_type: 'movie' }] })
+    return Response.json({ id: 10, title: '电影', runtime: 120, credits: { crew: [{ job: 'Director', name: '导演' }] } })
+  } })
+  assert.equal((await provider.search('电影'))[0].externalId, '10')
+  assert.deepEqual((await provider.get('movie', '10')).directors, ['导演'])
+  assert.equal(requests[0].url.searchParams.get('api_key'), null)
+  assert.equal(requests[0].url.searchParams.get('language'), 'zh-CN')
+  assert.equal(requests[0].options.headers.authorization, 'Bearer test-secret')
+  assert.equal(requests[1].url.searchParams.get('append_to_response'), 'credits')
+  const unauthorized = createTmdbProvider({ accessToken: 'test-secret', apiKey: '', fetch: async () => new Response('', { status: 401 }) })
+  await assert.rejects(unauthorized.search('电影'), (error) => error.message === 'TMDB 凭据无效' && !error.message.includes('test-secret'))
+})
+
+test('TMDB API Key 模式只发往官方接口', async () => {
+  const provider = createTmdbProvider({ accessToken: '', apiKey: 'test-key', fetch: async (url, options) => {
+    assert.equal(new URL(url).hostname, 'api.themoviedb.org')
+    assert.equal(new URL(url).searchParams.get('api_key'), 'test-key')
+    assert.equal(options.headers.authorization, undefined)
+    return Response.json({ results: [] })
+  } })
+  assert.deepEqual(await provider.search('电影'), [])
+  await assert.rejects(provider.get('movie', '../bad'), /TMDB 条目无效/)
+})
+
+test('海报代理允许指定规格 TMDB 图片且拒绝非预期地址', async () => {
+  const requested = []
+  const proxy = createPosterProxy({ fetch: async (url, options) => {
+    requested.push([String(url), options.headers.referer])
+    return new Response(new Uint8Array([0xff, 0xd8]), { headers: { 'content-type': 'image/jpeg' } })
+  } })
+  await proxy.fetch('https://image.tmdb.org/t/p/w500/abc.jpg')
+  assert.equal(requested[0][1], 'https://www.themoviedb.org/')
+  await assert.rejects(proxy.fetch('https://image.tmdb.org/t/p/original/abc.jpg'), /海报来源不受支持/)
+  await assert.rejects(proxy.fetch('https://image.tmdb.org.evil.com/t/p/w500/abc.jpg'), /海报来源不受支持/)
+})
+
+test('双来源搜索彼此隔离故障及同号条目的已入库状态', async () => {
+  const lookups = []
+  const repository = { existingExternalIds: async (source, ids) => {
+    lookups.push([source, ids])
+    return source === 'douban' ? new Set(['123']) : new Set()
+  } }
+  const douban = { id: 'douban', name: '豆瓣', search: async () => [{ externalId: '123', mediaType: 'movie' }] }
+  const tmdb = { id: 'tmdb', name: 'TMDB', configured: true, search: async () => [{ externalId: '123', mediaType: 'movie' }] }
+  const service = createMediaLibraryService(repository, douban, createPlayableSearch(), { tmdbProvider: tmdb })
+  const output = await service.searchResources('电影')
+  assert.deepEqual(output.results.map((entry) => [entry.source, entry.inLibrary]), [['douban', true], ['tmdb', false]])
+  assert.deepEqual(lookups, [['douban', ['123']], ['tmdb', ['123']]])
+  tmdb.search = async () => { throw new Error('暂时不可用') }
+  const partial = await service.searchResources('电影')
+  assert.equal(partial.results.length, 1)
+  assert.equal(partial.providers[1].status, 'failed')
+  tmdb.configured = false
+  assert.equal((await service.searchResources('电影')).providers[1].status, 'unconfigured')
+  await assert.rejects(service.searchResources('  '), /请输入影视名称/)
+})
+
+test('入库使用选择的来源重新读取详情并按来源唯一键查询', async () => {
+  const imported = []
+  const repository = {
+    importItem: async (item) => { imported.push(item); return { item, inserted: true } },
+  }
+  const douban = { get: async () => ({ source: 'douban', externalId: '123' }) }
+  const tmdb = { get: async (type, id) => ({ source: 'tmdb', externalId: id, mediaType: type, title: '服务端标题' }) }
+  const service = createMediaLibraryService(repository, douban, createPlayableSearch(), { tmdbProvider: tmdb })
+  await service.importResource({ source: 'tmdb', mediaType: 'movie', externalId: '123', title: '伪造的标题' })
+  assert.equal(imported[0].title, '服务端标题')
+  await assert.rejects(service.importResource({ source: 'other', mediaType: 'movie', externalId: '123' }), /影视来源无效/)
+  const queries = []
+  const repo = createMediaLibraryRepository({ query: async (sql, params) => { queries.push(params); return { rows: [{ external_id: '123' }] } } })
+  assert.deepEqual([...await repo.existingExternalIds('tmdb', ['123'])], ['123'])
+  assert.deepEqual(queries[0], ['tmdb', ['123']])
+})
+
+test('管理列表可以独立筛选动漫，手工资料校验标准字段', async () => {
+  const calls = []
+  const repository = {
+    list: async (...args) => { calls.push(args); return [] },
+    createItem: async (item) => item,
+  }
+  const service = createMediaLibraryService(repository, {}, createPlayableSearch())
+  await service.adminList('anime', '测试')
+  assert.deepEqual(calls[0], [null, '测试', true, 'anime'])
+  const item = await service.createItem({ mediaType: 'tv', title: '动漫', contentCategory: 'anime', genres: ['动画'], releaseDate: '2025-02-01' })
+  assert.equal(item.contentCategory, 'anime')
+  assert.deepEqual(item.genres, ['动画'])
+  await assert.rejects(service.createItem({ mediaType: 'movie', title: '影片', releaseDate: '2025-02-30' }), /上映日期无效/)
+})
 
 test('规范化豆瓣榜单并提取电视剧集数', () => {
   const body = { subject_collection_items: [{

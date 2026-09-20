@@ -9,7 +9,8 @@ function posterError(message, status = 502) {
 function validatePosterUrl(value) {
   let url
   try { url = new URL(value) } catch { throw posterError('海报地址无效') }
-  if (url.protocol !== 'https:' || url.username || url.password || !DOUBAN_IMAGE_HOST.test(url.hostname)) {
+  if (url.protocol !== 'https:' || url.username || url.password ||
+    !(DOUBAN_IMAGE_HOST.test(url.hostname) || (url.hostname === 'image.tmdb.org' && /^\/t\/p\/w500\/[\w-]+\.(?:jpg|jpeg|png|webp)$/i.test(url.pathname)))) {
     throw posterError('海报来源不受支持')
   }
   return url
@@ -46,7 +47,7 @@ export function createPosterProxy(options = {}) {
         response = await request(url, {
           headers: {
             accept: 'image/avif,image/webp,image/*,*/*;q=0.8',
-            referer: 'https://movie.douban.com/',
+            referer: url.hostname === 'image.tmdb.org' ? 'https://www.themoviedb.org/' : 'https://movie.douban.com/',
             'user-agent': 'Mozilla/5.0 (compatible; MotilaMediaLibrary/1.0)',
           },
           redirect: 'error',

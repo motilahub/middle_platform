@@ -6,6 +6,7 @@ import { createPlayableSearch } from './playableSearch.js'
 import { createPosterProxy } from './posterProxy.js'
 import { createMediaLibraryRepository } from './repository.js'
 import { createMediaLibraryService } from './service.js'
+import { createTmdbProvider } from './tmdbProvider.js'
 
 export const manifest = {
   key: 'media-library',
@@ -58,7 +59,8 @@ export function createMediaLibraryRouter(service, { asyncRoute, requirePermissio
     res.type(poster.contentType).send(poster.body)
   }))
   router.post('/admin/douban-search', mayCreate, asyncRoute(async (req, res) => res.json(await service.searchDouban(req.body?.keyword))))
-  router.post('/admin/import', mayCreate, asyncRoute(async (req, res) => res.json(await service.importDouban(req.body || {}))))
+  router.post('/admin/resource-search', mayCreate, asyncRoute(async (req, res) => res.json(await service.searchResources(req.body?.keyword))))
+  router.post('/admin/import', mayCreate, asyncRoute(async (req, res) => res.json(await service.importResource(req.body || {}))))
   return router
 }
 
@@ -76,7 +78,8 @@ export function createModule({ pool, asyncRoute, requirePermission, requireAnyPe
   ]
   const playableSearch = createPlayableSearch(playableProviders)
   const posterProxy = createPosterProxy(options.posterProxy)
-  const service = createMediaLibraryService(repository, provider, playableSearch, { ...options, posterProxy })
+  const tmdbProvider = createTmdbProvider(options.tmdbProvider)
+  const service = createMediaLibraryService(repository, provider, playableSearch, { ...options, tmdbProvider, posterProxy })
   const router = createMediaLibraryRouter(service, { asyncRoute, requirePermission, requireAnyPermission })
   const configuredInterval = Number(options.progressSyncIntervalMs ?? process.env.MEDIA_LIBRARY_PROGRESS_SYNC_INTERVAL_MS ?? 21600000)
   const progressSyncIntervalMs = configuredInterval <= 0 ? 0 : Math.max(5 * 60 * 1000, configuredInterval)

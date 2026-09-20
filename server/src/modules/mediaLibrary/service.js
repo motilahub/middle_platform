@@ -48,6 +48,13 @@ function editableItem(body) {
   const totalEpisodeCount = type === 'tv' ? optionalNumber(body.totalEpisodeCount, '总集数', { integer: true, min: 1, max: 9999 }) : null
   const availableEpisodeCount = type === 'tv' ? optionalNumber(body.availableEpisodeCount, '已更新集数', { integer: true, min: 1, max: 9999 }) : null
   if (totalEpisodeCount && availableEpisodeCount && availableEpisodeCount > totalEpisodeCount) throw failure('已更新集数不能超过总集数')
+  const releaseDate = optionalText(body.releaseDate, 10)
+  if (releaseDate && (!/^\d{4}-\d{2}-\d{2}$/.test(releaseDate) || !Number.isFinite(Date.parse(`${releaseDate}T00:00:00Z`)) || new Date(`${releaseDate}T00:00:00Z`).toISOString().slice(0, 10) !== releaseDate)) throw failure('上映日期无效')
+  const textList = (value, label) => {
+    if (value == null) return []
+    if (!Array.isArray(value) || value.length > 50 || value.some((item) => typeof item !== 'string' || item.trim().length > 100)) throw failure(`${label}无效`)
+    return [...new Set(value.map((item) => item.trim()).filter(Boolean))]
+  }
   const episodeStatus = type !== 'tv' || !availableEpisodeCount
     ? 'unknown'
     : totalEpisodeCount && availableEpisodeCount >= totalEpisodeCount ? 'completed' : 'updating'
@@ -59,6 +66,14 @@ function editableItem(body) {
     posterUrl: optionalUrl(body.posterUrl, '海报地址'),
     rating: optionalNumber(body.rating, '评分', { min: 0, max: 10 }),
     summary: optionalText(body.summary, 5000),
+    contentCategory: body.contentCategory === 'anime' ? 'anime' : 'general',
+    releaseDate,
+    runtimeMinutes: optionalNumber(body.runtimeMinutes, '时长', { integer: true, min: 1, max: 9999 }),
+    genres: textList(body.genres, '类型'),
+    countries: textList(body.countries, '地区'),
+    languages: textList(body.languages, '语言'),
+    directors: textList(body.directors, '导演'),
+    castMembers: textList(body.castMembers, '演员'),
     totalEpisodeCount,
     availableEpisodeCount,
     episodeCount: availableEpisodeCount || totalEpisodeCount,
@@ -116,7 +131,7 @@ export function createMediaLibraryService(repository, doubanProvider, playableSe
 
   return {
     list(type, query) { return repository.list(mediaType(type), searchKeyword(query)) },
-    adminList(type, query) { return repository.list(type === 'all' ? null : mediaType(type), searchKeyword(query), true) },
+    adminList(type, query) { return repository.list(type === 'all' || type === 'anime' ? null : mediaType(type), searchKeyword(query), true, type === 'anime' ? 'anime' : null) },
     get,
     refreshEpisodeProgress,
 
@@ -166,20 +181,46 @@ export function createMediaLibraryService(repository, doubanProvider, playableSe
       return syncPromise
     },
 
-    async searchDouban(query) {
-      const results = await doubanProvider.search(searchKeyword(query))
-      const existing = await repository.existingExternalIds(results.map((item) => item.externalId))
-      return results.map((item) => ({ ...item, inLibrary: existing.has(item.externalId) }))
+    async searchResources(query) {
+      const keyword = searchKeyword(query)
+      if (!keyword) throw failure('请输入影视名称')
+      const providers = [doubanProvider, options.tmdbProvider].filter(Boolean)
+      const settled = await Promise.allSettled(providers.map(async (provider) => {
+        if (provider.configured === false) throw failure('未配置 TMDB_ACCESS_TOKEN 或 TMDB_API_KEY', 503)
+        const results = await provider.search(keyword)
+        const existing = await repository.existingExternalIds(provider.id, results.map((item) => item.externalId))
+        return results.map((item) => ({ ...item, source: provider.id, inLibrary: existing.has(item.externalId) }))
+      }))
+      return {
+        results: settled.flatMap((entry) => entry.status === 'fulfilled' ? entry.value : []),
+        providers: settled.map((entry, index) => ({
+          source: providers[index].id, name: providers[index].name,
+          status: entry.status === 'fulfilled' ? 'success' : providers[index].configured === false ? 'unconfigured' : 'failed',
+          ...(entry.status === 'rejected' ? { message: entry.reason?.message || '搜索失败' } : {}),
+        })),
+      }
     },
 
-    async importDouban(body) {
+    async searchDouban(query) {
+      const results = await doubanProvider.search(searchKeyword(query))
+      const existing = await repository.existingExternalIds('douban', results.map((item) => item.externalId))
+      return results.map((item) => ({ ...item, source: 'douban', inLibrary: existing.has(item.externalId) }))
+    },
+
+    async importResource(body) {
       const type = mediaType(body.mediaType)
+      const source = body.source || 'douban'
+      if (!['douban', 'tmdb'].includes(source)) throw failure('影视来源无效')
       const externalId = String(body.externalId || '').trim()
-      if (!/^\d+$/.test(externalId)) throw Object.assign(new Error('豆瓣 ID 无效'), { status: 400 })
-      const detail = await doubanProvider.get(type, externalId)
+      if (!/^[1-9]\d*$/.test(externalId)) throw failure('影视 ID 无效')
+      const provider = source === 'tmdb' ? options.tmdbProvider : doubanProvider
+      if (!provider) throw failure('影视来源未配置', 503)
+      const detail = await provider.get(type, externalId)
       const result = await repository.importItem(detail)
       return { ...result, message: result.inserted ? '已加入影视库' : '影视信息已更新' }
     },
+
+    importDouban(body) { return this.importResource({ ...body, source: 'douban' }) },
 
     async searchPlayable(body) {
       const item = await get(body.mediaId)

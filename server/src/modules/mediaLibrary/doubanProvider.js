@@ -92,6 +92,7 @@ export function normalizeDoubanSearch(body) {
     return [{
       externalId,
       mediaType,
+      contentCategory: (Array.isArray(target?.genres) ? target.genres : []).some((genre) => /动画|动漫|anime|animation/i.test(String(genre))) ? 'anime' : 'general',
       title: title.slice(0, 300),
       year: yearFrom(target),
       posterUrl: String(target?.cover_url || target?.img || '').trim() || null,
@@ -108,6 +109,10 @@ export function normalizeDoubanDetail(body, mediaType) {
   if (!/^\d+$/.test(externalId) || !title || !['movie', 'tv'].includes(mediaType)) throw providerError('豆瓣条目数据无效')
   const rating = Number(body?.rating?.value)
   const progress = mediaType === 'tv' ? episodeProgressFrom(body?.episodes_info, body?.episodes_count) : {}
+  const names = (list) => (Array.isArray(list) ? list : []).map((entry) => String(typeof entry === 'string' ? entry : entry?.name || '').trim()).filter(Boolean)
+  const genres = names(body?.genres)
+  const date = String(body?.pubdate?.[0] || body?.release_date || '').trim()
+  const duration = String(body?.durations?.[0] || body?.duration || '').match(/\d+/)?.[0]
   return {
     source: 'douban',
     externalId,
@@ -124,6 +129,14 @@ export function normalizeDoubanDetail(body, mediaType) {
     availableEpisodeCount: progress.availableEpisodeCount || null,
     episodeStatus: progress.episodeStatus || 'unknown',
     sourceUrl: `https://movie.douban.com/subject/${externalId}/`,
+    contentCategory: genres.some((genre) => /动画|动漫|anime|animation/i.test(genre)) ? 'anime' : 'general',
+    releaseDate: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
+    runtimeMinutes: Number(duration) > 0 ? Number(duration) : null,
+    genres,
+    countries: names(body?.countries),
+    languages: names(body?.languages),
+    directors: names(body?.directors),
+    castMembers: names(body?.actors).slice(0, 20),
     metadata: {
       subtitle: String(body?.card_subtitle || '').trim(),
       episodesInfo: String(body?.episodes_info || '').trim(),
@@ -215,6 +228,7 @@ export function createDoubanProvider(options = {}) {
         return {
           externalId: item.externalId,
           mediaType: item.mediaType,
+          contentCategory: item.contentCategory,
           title: item.title,
           year: item.year,
           posterUrl: item.posterUrl,
