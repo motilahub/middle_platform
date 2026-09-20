@@ -1,5 +1,5 @@
 import { App, Button, Empty, InputNumber, Modal, Pagination, Spin, Tag, Tooltip, Typography } from 'antd'
-import { ArrowLeftOutlined, CloseOutlined, CloudDownloadOutlined, ExportOutlined, LeftOutlined, PlayCircleOutlined, RightOutlined, StarFilled } from '@ant-design/icons'
+import { ArrowLeftOutlined, CloseOutlined, ExportOutlined, LeftOutlined, RightOutlined, StarFilled } from '@ant-design/icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { SystemFooter, SystemHeader } from '../../platform/layout/SystemChrome'
@@ -36,6 +36,7 @@ export default function MediaDetailPage() {
   })
   const episodeRef = useRef(episode)
   const [episodesPerPage, setEpisodesPerPage] = useState(20)
+  const [episodeActionsWidth, setEpisodeActionsWidth] = useState<number>()
   const [episodePage, setEpisodePage] = useState(() => Math.ceil(episode / 20))
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [playableLoading, setPlayableLoading] = useState(false)
@@ -57,7 +58,9 @@ export default function MediaDetailPage() {
       const tileWidth = parseFloat(style.getPropertyValue('--episode-tile-width'))
       const gap = parseFloat(style.columnGap)
       if (!tileWidth || !Number.isFinite(gap)) return
-      const pageSize = Math.max(2, Math.floor((grid.clientWidth + gap) / (tileWidth + gap)) * 2)
+      const columns = Math.max(1, Math.floor((grid.clientWidth + gap) / (tileWidth + gap)))
+      const pageSize = columns * 2
+      setEpisodeActionsWidth(columns * tileWidth + (columns - 1) * gap)
       const previous = episodePageSizeRef.current
       if (previous === pageSize) return
       episodePageSizeRef.current = pageSize
@@ -204,6 +207,8 @@ export default function MediaDetailPage() {
       showTitleOverlay
       mode={activePlayable?.type || 'auto'}
       reloadKey={playerReloadKey}
+      resumeKey={`${item.id}:${playingEpisode || 'movie'}`}
+      sourceKey={activePlayableId}
       onPlaybackError={handlePlaybackError}
       onEnded={item.mediaType === 'tv' && playingEpisode && playingEpisode < lastEpisode
         ? () => { void playOnline(playingEpisode + 1, true) }
@@ -216,7 +221,7 @@ export default function MediaDetailPage() {
         <Tooltip title={linePanelOpen ? '收起线路' : '展开线路'}><Button ref={lineToggleRef} type="text" className="video-player-line-toggle" icon={linePanelOpen ? <RightOutlined /> : <LeftOutlined />} aria-label={linePanelOpen ? '收起线路' : '展开线路'} aria-expanded={linePanelOpen} onClick={() => linePanelOpen ? closeLinePanel() : openLinePanel()} /></Tooltip>
         <div className="video-player-line-list">
           <strong>播放线路</strong>
-          <div ref={lineOptionsRef} className="video-player-line-options">{linePanelOpen && sourceOptions.map((option) => <Button key={option.value} type="text" className={activePlayableId === option.value ? 'is-active' : ''} title={option.label} aria-pressed={activePlayableId === option.value} onClick={() => { setActivePlayableId(option.value); setPlayerReloadKey((key) => key + 1); closeLinePanel(); lineToggleRef.current?.focus() }}>{option.label}</Button>)}</div>
+          <div ref={lineOptionsRef} className="video-player-line-options">{linePanelOpen && sourceOptions.map((option) => <Button key={option.value} type="text" className={activePlayableId === option.value ? 'is-active' : ''} title={option.label} aria-pressed={activePlayableId === option.value} onClick={() => { if (option.value !== activePlayableId) { setActivePlayableId(option.value); setPlayerReloadKey((key) => key + 1) } closeLinePanel(); lineToggleRef.current?.focus() }}>{option.label}</Button>)}</div>
         </div>
       </aside> : undefined}
     />
@@ -242,17 +247,17 @@ export default function MediaDetailPage() {
           {item.summary && <Typography.Paragraph className="media-detail-summary">{item.summary}</Typography.Paragraph>}
           {item.sourceUrl && <Button className="media-detail-source" type="link" href={item.sourceUrl} target="_blank" rel="noreferrer" icon={<ExportOutlined />}>豆瓣条目</Button>}
           {item.mediaType === 'movie' && <div className="media-detail-actions">
-            <Button type="primary" icon={<PlayCircleOutlined />} loading={playableLoading} onClick={() => void playOnline()}>在线播放</Button>
-            <Button icon={<CloudDownloadOutlined />} onClick={() => openPanResources()}>网盘资源</Button>
+            <Button type="primary" loading={playableLoading} onClick={() => void playOnline()}>在线播放</Button>
+            <Button onClick={() => openPanResources()}>网盘资源</Button>
           </div>}
         </div>
       </section>
 
       {item.mediaType === 'tv' && <section className="media-detail-episodes">
         <Typography.Title level={3}>选集</Typography.Title>
-        <div className="media-detail-actions">
-          <Button type="primary" icon={<PlayCircleOutlined />} loading={playableLoading} onClick={() => void playOnline(episode)}>在线播放</Button>
-          <Button icon={<CloudDownloadOutlined />} onClick={() => openPanResources(episode)}>网盘资源</Button>
+        <div className="media-detail-actions" style={episodes.length ? { maxWidth: episodeActionsWidth } : undefined}>
+          <Button type="primary" loading={playableLoading} onClick={() => void playOnline(episode)}>在线播放</Button>
+          <Button onClick={() => openPanResources(episode)}>网盘资源</Button>
         </div>
         {episodes.length
           ? <><div ref={episodeGridRef} className="media-episode-grid">{episodes.map((number) => <Button key={number} type={episode === number ? 'primary' : 'default'} title={`第 ${number} 集`} onClick={() => selectAndPlayEpisode(number)}>{number}</Button>)}</div>
@@ -263,7 +268,7 @@ export default function MediaDetailPage() {
     </main>
     <SystemFooter />
     <ResourceDrawer item={item} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-    <Modal className="media-floating-player" open={floatingOpen} footer={null} closable={false} width={960} centered onCancel={closeFloatingPlayer} destroyOnClose styles={{ mask: { backgroundColor: '#000' } }}>
+    <Modal className="media-floating-player" open={floatingOpen} footer={null} closable={false} maskClosable={false} width={960} centered onCancel={closeFloatingPlayer} destroyOnClose styles={{ mask: { backgroundColor: '#000' } }}>
       <div className="media-floating-player-toolbar"><Button type="text" icon={<CloseOutlined />} aria-label="关闭播放器" title="关闭播放器" onClick={closeFloatingPlayer} /></div>
       {floatingOpen && player}
     </Modal>
