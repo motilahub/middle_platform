@@ -1,6 +1,6 @@
 import express from 'express'
 import { createDoubanProvider } from './doubanProvider.js'
-import { createBaofengProvider, createXinlangProvider, createYzy1080Provider } from './macCmsProvider.js'
+import { createBaofengProvider, createFeifanProvider, createXinlangProvider, createYzy1080Provider, createZy360Provider } from './macCmsProvider.js'
 import { createNiuniuProvider } from './niuniuProvider.js'
 import { createPlayableSearch } from './playableSearch.js'
 import { createPosterProxy } from './posterProxy.js'
@@ -70,6 +70,8 @@ export function createModule({ pool, asyncRoute, requirePermission, requireAnyPe
     ...(providerEnabled(options.yzy1080Provider?.enabled, 'YZY1080_PLAYABLE_ENABLED') ? [createYzy1080Provider(options.yzy1080Provider)] : []),
     ...(providerEnabled(options.xinlangProvider?.enabled, 'XINLANG_PLAYABLE_ENABLED') ? [createXinlangProvider(options.xinlangProvider)] : []),
     ...(providerEnabled(options.niuniuProvider?.enabled, 'NIUNIU_PLAYABLE_ENABLED') ? [createNiuniuProvider(options.niuniuProvider)] : []),
+    ...(providerEnabled(options.feifanProvider?.enabled, 'FEIFAN_PLAYABLE_ENABLED') ? [createFeifanProvider(options.feifanProvider)] : []),
+    ...(providerEnabled(options.zy360Provider?.enabled, 'ZY360_PLAYABLE_ENABLED') ? [createZy360Provider(options.zy360Provider)] : []),
     ...(options.playableProviders || []),
   ]
   const playableSearch = createPlayableSearch(playableProviders)
