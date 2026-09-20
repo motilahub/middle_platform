@@ -7,7 +7,7 @@ import VideoPlayer from '../videoPlayer/VideoPlayer'
 import { mediaLibraryApi } from './api'
 import MediaPoster from './MediaPoster'
 import { MediaThemeProvider, MediaThemeToggle, useMediaTheme } from './MediaTheme'
-import { episodeLabel, episodeLimit, isEpisodeAvailable } from './episode'
+import { episodeLabel, episodeLimit } from './episode'
 import ResourceDrawer from './ResourceDrawer'
 import type { MediaItem, PlayableResource } from './types'
 
@@ -144,7 +144,7 @@ export default function MediaDetailPage() {
       {item.mediaType === 'tv' && <section className="media-detail-episodes">
         <Typography.Title level={3}>选集</Typography.Title>
         {episodes.length
-          ? <div className="media-episode-grid">{episodes.map((number) => <Button key={number} type={episode === number ? 'primary' : 'default'} disabled={!isEpisodeAvailable(item, number)} title={isEpisodeAvailable(item, number) ? `第 ${number} 集` : '尚未更新'} onClick={() => selectAndPlayEpisode(number)}>{number}</Button>)}</div>
+          ? <div className="media-episode-grid">{episodes.map((number) => <Button key={number} type={episode === number ? 'primary' : 'default'} title={`第 ${number} 集`} onClick={() => selectAndPlayEpisode(number)}>{number}</Button>)}</div>
           : <InputNumber min={1} max={9999} value={episode} onChange={(value) => selectAndPlayEpisode(value || 1)} aria-label="集数" addonBefore="第" addonAfter="集" />}
         <div className="media-detail-actions">
           <Button type="primary" icon={<PlayCircleOutlined />} loading={playableLoading} onClick={() => void playOnline(episode)}>在线播放</Button>

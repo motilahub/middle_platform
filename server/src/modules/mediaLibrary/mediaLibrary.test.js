@@ -183,7 +183,7 @@ test('刷新所有豆瓣电视剧的总集数和已更新集数', async () => {
   assert.equal(updating.availableEpisodeCount, 18)
 })
 
-test('未更新的电视剧集数不可搜索资源', async () => {
+test('电视剧可搜索未更新的计划集数，但不能超过总集数', async () => {
   const repository = {
     get: async () => ({
       id: 5,
@@ -194,11 +194,17 @@ test('未更新的电视剧集数不可搜索资源', async () => {
       episodeCount: 18,
     }),
   }
-  const service = createMediaLibraryService(repository, {}, createPlayableSearch())
+  const searches = []
+  const service = createMediaLibraryService(repository, {}, {
+    search: async (input) => { searches.push(input); return { results: [] } },
+  })
+  await service.searchPlayable({ mediaId: 5, episode: 19 })
+  assert.equal(searches[0].episode, 19)
   await assert.rejects(
-    () => service.searchPlayable({ mediaId: 5, episode: 19 }),
-    /当前仅更新至第 18 集/,
+    () => service.searchPlayable({ mediaId: 5, episode: 48 }),
+    /集数不能超过 47/,
   )
+  assert.equal(searches.length, 1)
 })
 
 test('按豆瓣 ID 手工入库并返回新增状态', async () => {
