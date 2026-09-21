@@ -1,5 +1,5 @@
 import nodeFetch from 'node-fetch'
-import { ProxyAgent } from 'proxy-agent'
+import { createFixedProxyAgent } from './proxyAgent.js'
 
 const MAX_POSTER_BYTES = 5 * 1024 * 1024
 const DOUBAN_IMAGE_HOST = /(^|\.)doubanio\.com$/i
@@ -53,7 +53,7 @@ export function createPosterProxy(options = {}) {
   const proxyUrl = String(options.proxyUrl ?? process.env.TMDB_PROXY_URL ?? process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY ?? '').trim()
   let proxyAgent
   if (proxyUrl) {
-    try { proxyAgent = new ProxyAgent(proxyUrl) } catch (error) { throw posterError(`海报代理配置无效: ${error.message}`, 500) }
+    try { proxyAgent = createFixedProxyAgent(proxyUrl) } catch { throw posterError('海报代理配置无效', 500) }
   }
   const request = options.fetch || (proxyAgent
     ? (url, init) => nodeFetch(url, { ...init, agent: proxyAgent })
