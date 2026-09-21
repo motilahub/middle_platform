@@ -621,7 +621,6 @@ export default function VideoPlayer({
       longPressTimerRef.current = undefined
       longPressRateRef.current = player.playbackRate
       player.playbackRate = 2
-      setGestureFeedback({ label: '2倍速播放中' })
     }, 450)
   }
 
