@@ -1,19 +1,19 @@
-import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import { App, Button, Popover, Slider, Tooltip } from 'antd'
+import { type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { App, Button, Popover, Slider } from 'antd'
 import {
   DesktopOutlined,
   DisconnectOutlined,
   FullscreenExitOutlined,
   FullscreenOutlined,
+  LockOutlined,
   MutedFilled,
   PauseCircleOutlined,
   PlayCircleOutlined,
-  RotateLeftOutlined,
-  RotateRightOutlined,
   ShareAltOutlined,
   SoundFilled,
   StepBackwardOutlined,
   StepForwardOutlined,
+  UnlockOutlined,
 } from '@ant-design/icons'
 import type HlsType from 'hls.js'
 
@@ -37,11 +37,22 @@ type SafariVideoElement = HTMLVideoElement & {
   webkitExitFullscreen?: () => void
   webkitShowPlaybackTargetPicker?: () => void
 }
-type LockableOrientation = ScreenOrientation & { lock?: (orientation: 'landscape') => Promise<void> }
+type LockableOrientation = ScreenOrientation & { lock?: (orientation: 'landscape' | 'portrait') => Promise<void> }
 
 export type PlaybackMode = 'auto' | 'hls' | 'direct'
 type PlayerStatus = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'error'
 type BufferedRange = { start: number; end: number }
+type TouchAdjustment = 'brightness' | 'volume'
+type GestureFeedback = { label: string; value?: number }
+type PointerGesture = {
+  pointerId: number
+  startX: number
+  startY: number
+  startBrightness: number
+  startVolume: number
+  adjustment?: TouchAdjustment
+  moved: boolean
+}
 
 export interface VideoPlayerProps {
   source?: string
@@ -132,6 +143,12 @@ export default function VideoPlayer({
   const lastPlaybackPositionRef = useRef(0)
   const pendingResumeRef = useRef<number>()
   const orientationLockedRef = useRef(false)
+  const screenLockedRef = useRef(false)
+  const pointerGestureRef = useRef<PointerGesture>()
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const longPressRateRef = useRef<number>()
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const suppressVideoClickRef = useRef(false)
   const [activeSource, setActiveSource] = useState('')
   const [status, setStatus] = useState<PlayerStatus>('idle')
   const [isPlaying, setIsPlaying] = useState(false)
@@ -148,7 +165,9 @@ export default function VideoPlayer({
   const [controlsVisible, setControlsVisible] = useState(true)
   const [volumeOpen, setVolumeOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
-  const [orientationLocked, setOrientationLocked] = useState(false)
+  const [screenLocked, setScreenLocked] = useState(false)
+  const [brightness, setBrightness] = useState(1)
+  const [gestureFeedback, setGestureFeedback] = useState<GestureFeedback>()
 
   useEffect(() => {
     onPlaybackErrorRef.current = onPlaybackError
@@ -298,6 +317,8 @@ export default function VideoPlayer({
   useEffect(() => () => {
     if (videoClickTimerRef.current) clearTimeout(videoClickTimerRef.current)
     if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current)
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
     const connection = presentationRef.current
     if (connection) {
       try {
@@ -318,8 +339,13 @@ export default function VideoPlayer({
     if (!orientationLockedRef.current) return
     orientationLockedRef.current = false
     try { screen.orientation?.unlock() } catch { /* Browser may already have released the lock. */ }
-    setOrientationLocked(false)
   }, [])
+
+  const unlockScreen = useCallback(() => {
+    screenLockedRef.current = false
+    setScreenLocked(false)
+    releaseOrientation()
+  }, [releaseOrientation])
 
   const keepControlsVisible = useCallback(() => {
     if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current)
@@ -332,7 +358,7 @@ export default function VideoPlayer({
     video.setAttribute('x-webkit-airplay', 'allow')
     const handleAirPlayChange = () => setAirPlayConnected(Boolean(video.webkitCurrentPlaybackTargetIsWireless))
     const handleNativeFullscreenStart = () => setIsFullscreen(true)
-    const handleNativeFullscreenEnd = () => { setIsFullscreen(false); keepControlsVisible() }
+    const handleNativeFullscreenEnd = () => { setIsFullscreen(false); unlockScreen(); keepControlsVisible() }
     video.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', handleAirPlayChange)
     video.addEventListener('webkitbeginfullscreen', handleNativeFullscreenStart)
     video.addEventListener('webkitendfullscreen', handleNativeFullscreenEnd)
@@ -341,16 +367,17 @@ export default function VideoPlayer({
       video.removeEventListener('webkitbeginfullscreen', handleNativeFullscreenStart)
       video.removeEventListener('webkitendfullscreen', handleNativeFullscreenEnd)
     }
-  }, [keepControlsVisible])
+  }, [keepControlsVisible, unlockScreen])
 
   const scheduleControlsHide = useCallback(() => {
     if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current)
+    if (screenLockedRef.current) return
     setControlsVisible(true)
-    if (fullscreenElement() !== stageRef.current || videoRef.current?.paused || volumeOpen) return
+    if (videoRef.current?.paused || volumeOpen) return
     controlsHideTimerRef.current = setTimeout(() => {
       controlsHideTimerRef.current = undefined
-      if (fullscreenElement() === stageRef.current && !videoRef.current?.paused && !volumeOpen) setControlsVisible(false)
-    }, 2500)
+      if (!videoRef.current?.paused && !volumeOpen && !screenLockedRef.current) setControlsVisible(false)
+    }, 5000)
   }, [volumeOpen])
 
   useEffect(() => {
@@ -358,7 +385,7 @@ export default function VideoPlayer({
       const fullscreen = fullscreenElement() === stageRef.current
       setIsFullscreen(fullscreen)
       if (fullscreen) scheduleControlsHide()
-      else { releaseOrientation(); keepControlsVisible() }
+      else { unlockScreen(); keepControlsVisible() }
     }
     document.addEventListener('fullscreenchange', handleFullscreenChange)
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
@@ -366,12 +393,12 @@ export default function VideoPlayer({
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
     }
-  }, [keepControlsVisible, releaseOrientation, scheduleControlsHide])
+  }, [keepControlsVisible, scheduleControlsHide, unlockScreen])
 
   useEffect(() => {
-    if (isFullscreen && isPlaying) scheduleControlsHide()
+    if (isPlaying) scheduleControlsHide()
     else keepControlsVisible()
-  }, [isFullscreen, isPlaying, keepControlsVisible, scheduleControlsHide])
+  }, [isPlaying, keepControlsVisible, scheduleControlsHide])
 
   const stopPresentation = () => {
     const connection = presentationRef.current
@@ -465,25 +492,30 @@ export default function VideoPlayer({
     }
   }
 
-  const toggleLandscape = async () => {
+  const toggleScreenLock = async () => {
     const orientation = screen.orientation as LockableOrientation | undefined
     if (!orientation?.lock) return
-    if (orientationLockedRef.current) { releaseOrientation(); return }
-    if (fullscreenElement() !== stageRef.current) {
-      await toggleFullscreen()
-      if (fullscreenElement() !== stageRef.current) return
-    }
+    if (screenLockedRef.current) { unlockScreen(); keepControlsVisible(); return }
+    if (fullscreenElement() !== stageRef.current) return
     try {
-      await orientation.lock('landscape')
+      const currentOrientation = window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait'
+      await orientation.lock(currentOrientation)
       if (fullscreenElement() !== stageRef.current) { orientation.unlock(); return }
       orientationLockedRef.current = true
-      setOrientationLocked(true)
+      screenLockedRef.current = true
+      setScreenLocked(true)
+      setControlsVisible(false)
     } catch {
-      message.info('无法锁定横屏，请开启设备自动旋转后转动设备')
+      message.info('当前浏览器未允许锁定屏幕方向')
     }
   }
 
   const handleVideoClick = () => {
+    if (screenLockedRef.current) return
+    if (suppressVideoClickRef.current) {
+      suppressVideoClickRef.current = false
+      return
+    }
     if (videoClickTimerRef.current) clearTimeout(videoClickTimerRef.current)
     videoClickTimerRef.current = setTimeout(() => {
       videoClickTimerRef.current = undefined
@@ -545,6 +577,77 @@ export default function VideoPlayer({
     player.muted = value === 0
   }
 
+  const clearLongPressTimer = () => {
+    if (!longPressTimerRef.current) return
+    clearTimeout(longPressTimerRef.current)
+    longPressTimerRef.current = undefined
+  }
+
+  const finishPointerGesture = (event: ReactPointerEvent<HTMLVideoElement>) => {
+    const gesture = pointerGestureRef.current
+    if (!gesture || gesture.pointerId !== event.pointerId) return
+    clearLongPressTimer()
+    if (longPressRateRef.current !== undefined) {
+      if (videoRef.current) videoRef.current.playbackRate = longPressRateRef.current
+      longPressRateRef.current = undefined
+      suppressVideoClickRef.current = true
+    }
+    if (gesture.moved) suppressVideoClickRef.current = true
+    pointerGestureRef.current = undefined
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
+    feedbackTimerRef.current = setTimeout(() => setGestureFeedback(undefined), 450)
+    setTimeout(() => { suppressVideoClickRef.current = false }, 400)
+  }
+
+  const handleVideoPointerDown = (event: ReactPointerEvent<HTMLVideoElement>) => {
+    if (!activeSource || presentation || screenLockedRef.current || (event.pointerType === 'mouse' && event.button !== 0)) return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    pointerGestureRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startBrightness: brightness,
+      startVolume: muted ? 0 : volume,
+      adjustment: event.clientX < bounds.left + bounds.width / 2 ? 'brightness' : 'volume',
+      moved: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    clearLongPressTimer()
+    longPressTimerRef.current = setTimeout(() => {
+      const gesture = pointerGestureRef.current
+      const player = videoRef.current
+      if (!gesture || gesture.moved || !player || player.paused) return
+      longPressTimerRef.current = undefined
+      longPressRateRef.current = player.playbackRate
+      player.playbackRate = 2
+      setGestureFeedback({ label: '2倍速播放中' })
+    }, 450)
+  }
+
+  const handleVideoPointerMove = (event: ReactPointerEvent<HTMLVideoElement>) => {
+    const gesture = pointerGestureRef.current
+    if (!gesture || gesture.pointerId !== event.pointerId || longPressRateRef.current !== undefined) return
+    const deltaX = event.clientX - gesture.startX
+    const deltaY = event.clientY - gesture.startY
+    if (!gesture.moved && Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 10) return
+    gesture.moved = true
+    clearLongPressTimer()
+    if (Math.abs(deltaY) < Math.abs(deltaX) || !gesture.adjustment) return
+    event.preventDefault()
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const change = -deltaY / Math.max(120, bounds.height * 0.65)
+    if (gesture.adjustment === 'brightness') {
+      const nextBrightness = Math.min(1, Math.max(0.2, gesture.startBrightness + change))
+      setBrightness(nextBrightness)
+      setGestureFeedback({ label: '亮度', value: Math.round(nextBrightness * 100) })
+      return
+    }
+    const nextVolume = Math.min(1, Math.max(0, gesture.startVolume + change))
+    changeVolume(nextVolume * 100)
+    setGestureFeedback({ label: '音量', value: Math.round(nextVolume * 100) })
+  }
+
   const syncBufferedRanges = (player: HTMLVideoElement) => {
     const ranges = Array.from({ length: player.buffered.length }, (_, index) => ({
       start: player.buffered.start(index),
@@ -555,12 +658,15 @@ export default function VideoPlayer({
 
   const playedPercent = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0
   const casting = Boolean(presentation) || airPlayConnected
-  const castingLabel = presentation ? '退出投屏' : airPlayConnected ? '切换或退出隔空播放' : '投屏'
+  const supportsScreenLock = !presentationReceiver
+    && !usesNativeSafariFullscreen()
+    && typeof (screen.orientation as LockableOrientation | undefined)?.lock === 'function'
+    && window.matchMedia('(pointer: coarse)').matches
 
   return <>
     <section
       ref={stageRef}
-      className={`video-player-stage${isFullscreen && !controlsVisible ? ' is-controls-hidden' : ''}`}
+      className={`video-player-stage${!controlsVisible || screenLocked ? ' is-controls-hidden' : ''}${screenLocked ? ' is-screen-locked' : ''}`}
       aria-label="视频播放区域"
       onMouseMove={scheduleControlsHide}
       onTouchStart={scheduleControlsHide}
@@ -568,12 +674,17 @@ export default function VideoPlayer({
     >
       <video
         ref={videoRef}
-        className={activeSource && !presentation ? 'is-interactive' : undefined}
+        className={activeSource && !presentation && !screenLocked ? 'is-interactive' : undefined}
+        style={{ '--video-brightness': brightness } as CSSProperties}
         controls={presentationReceiver}
         playsInline
         preload="metadata"
         onClick={presentationReceiver ? undefined : handleVideoClick}
         onDoubleClick={presentationReceiver ? undefined : handleVideoDoubleClick}
+        onPointerDown={presentationReceiver ? undefined : handleVideoPointerDown}
+        onPointerMove={presentationReceiver ? undefined : handleVideoPointerMove}
+        onPointerUp={presentationReceiver ? undefined : finishPointerGesture}
+        onPointerCancel={presentationReceiver ? undefined : finishPointerGesture}
         onLoadedMetadata={(event) => restorePlaybackPosition(event.currentTarget)}
         onCanPlay={(event) => {
           restorePlaybackPosition(event.currentTarget)
@@ -622,21 +733,26 @@ export default function VideoPlayer({
         <span>当前设备已暂停播放</span>
       </div>}
       {status === 'loading' && !presentation && <div className="video-player-loading" aria-live="polite"><span /></div>}
+      {gestureFeedback && <div className="video-player-gesture-feedback" role="status" aria-live="polite">
+        <strong>{gestureFeedback.label}</strong>
+        {gestureFeedback.value !== undefined && <><span>{gestureFeedback.value}%</span><i aria-hidden="true"><b style={{ width: `${gestureFeedback.value}%` }} /></i></>}
+      </div>}
+      {isFullscreen && supportsScreenLock && <Button className="video-player-screen-lock" type="text" shape="circle" icon={screenLocked ? <UnlockOutlined /> : <LockOutlined />} aria-label={screenLocked ? '解除锁屏' : '锁定屏幕'} onClick={() => void toggleScreenLock()} />}
       {!presentationReceiver && <div className="video-player-overlay-actions" aria-label="播放器操作" onMouseEnter={keepControlsVisible} onMouseMove={(event) => event.stopPropagation()} onMouseLeave={scheduleControlsHide}>
         {topRightContent}
         <Popover rootClassName="video-player-share-popover" placement="bottomRight" trigger="click" open={shareOpen} onOpenChange={setShareOpen} getPopupContainer={() => stageRef.current || document.body} content={<div className="video-player-share-options">
           {typeof navigator.share === 'function' && <Button type="text" onClick={() => void shareVideo()}>分享到应用</Button>}
           <Button type="text" onClick={() => void copyVideoLink()}>复制链接</Button>
         </div>}>
-          <Button type="text" shape="circle" icon={<ShareAltOutlined />} disabled={!activeSource} aria-label="分享" title="分享" />
+          <Button type="text" shape="circle" icon={<ShareAltOutlined />} disabled={!activeSource} aria-label="分享" />
         </Popover>
-        <Tooltip title={castingLabel}><Button type="text" shape="circle" icon={casting ? <DisconnectOutlined /> : <DesktopOutlined />} disabled={!activeSource} onClick={() => (presentation ? stopPresentation() : void presentVideo())} /></Tooltip>
+        <Button type="text" shape="circle" icon={casting ? <DisconnectOutlined /> : <DesktopOutlined />} disabled={!activeSource} aria-label={presentation ? '退出投屏' : airPlayConnected ? '切换或退出隔空播放' : '投屏'} onClick={() => (presentation ? stopPresentation() : void presentVideo())} />
       </div>}
       {!presentationReceiver && sideContent}
       {!presentationReceiver && !presentation && <div className="video-player-bottom-controls" aria-label="播放控制" onMouseEnter={keepControlsVisible} onMouseMove={(event) => event.stopPropagation()} onMouseLeave={scheduleControlsHide}>
-        {onPreviousEpisode && <Tooltip title="上一集"><Button type="text" shape="circle" icon={<StepBackwardOutlined />} aria-label="上一集" disabled={!activeSource || !canPreviousEpisode} onClick={onPreviousEpisode} /></Tooltip>}
-        <Tooltip title={isPlaying ? '暂停' : '播放'}><Button type="text" shape="circle" icon={isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />} disabled={!activeSource} onClick={() => void togglePlayback()} /></Tooltip>
-        {onNextEpisode && <Tooltip title="下一集"><Button type="text" shape="circle" icon={<StepForwardOutlined />} aria-label="下一集" disabled={!activeSource || !canNextEpisode} onClick={onNextEpisode} /></Tooltip>}
+        {onPreviousEpisode && <Button type="text" shape="circle" icon={<StepBackwardOutlined />} aria-label="上一集" disabled={!activeSource || !canPreviousEpisode} onClick={onPreviousEpisode} />}
+        <Button type="text" shape="circle" icon={isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />} aria-label={isPlaying ? '暂停' : '播放'} disabled={!activeSource} onClick={() => void togglePlayback()} />
+        {onNextEpisode && <Button type="text" shape="circle" icon={<StepForwardOutlined />} aria-label="下一集" disabled={!activeSource || !canNextEpisode} onClick={onNextEpisode} />}
         <span className="video-player-time">{formatPlaybackTime(currentTime)}</span>
         <div className="video-player-progress-shell">
           <div className="video-player-progress-track" aria-hidden="true">
@@ -653,9 +769,9 @@ export default function VideoPlayer({
         </div>
         <span className="video-player-time">{formatPlaybackTime(duration)}</span>
         <Popover rootClassName="video-player-volume-popover" placement="top" trigger="click" open={volumeOpen} getPopupContainer={() => stageRef.current || document.body} onOpenChange={(open) => { setVolumeOpen(open); if (open) keepControlsVisible(); else scheduleControlsHide() }} content={<div className="video-player-volume-slider" onPointerDown={(event) => event.stopPropagation()} onMouseMove={(event) => event.stopPropagation()}><Slider vertical min={0} max={100} step={1} value={muted ? 0 : Math.round(volume * 100)} disabled={!activeSource} aria-label="音量" tooltip={{ formatter: (value) => `${value ?? 0}%`, getPopupContainer: (trigger) => trigger.parentElement || stageRef.current || document.body }} onChange={changeVolume} /></div>}>
-          <Button className="video-player-volume-trigger" type="text" shape="circle" icon={muted || volume === 0 ? <MutedFilled /> : <SoundFilled />} disabled={!activeSource} aria-label="调节音量" title="音量" />
+          <Button className="video-player-volume-trigger" type="text" shape="circle" icon={muted || volume === 0 ? <MutedFilled /> : <SoundFilled />} disabled={!activeSource} aria-label="调节音量" />
         </Popover>
-        <select className="video-player-rate" name="playback-rate" value={playbackRate} disabled={!activeSource} aria-label="播放速度" title="播放速度" onChange={(event) => {
+        <select className="video-player-rate" name="playback-rate" value={playbackRate} disabled={!activeSource} aria-label="播放速度" onChange={(event) => {
           const value = Number(event.target.value)
           if (videoRef.current) videoRef.current.playbackRate = value
           setPlaybackRate(value)
@@ -663,9 +779,7 @@ export default function VideoPlayer({
           <option value={0.5}>0.5x</option><option value={0.75}>0.75x</option><option value={1}>1x</option>
           <option value={1.25}>1.25x</option><option value={1.5}>1.5x</option><option value={2}>2x</option>
         </select>
-        {!presentationReceiver && !usesNativeSafariFullscreen() && typeof (screen.orientation as LockableOrientation | undefined)?.lock === 'function' && window.matchMedia('(pointer: coarse)').matches &&
-          <Tooltip title={orientationLocked ? '恢复自动旋转' : '横屏播放'}><Button type="text" shape="circle" className="video-player-orientation" icon={orientationLocked ? <RotateLeftOutlined /> : <RotateRightOutlined />} aria-label={orientationLocked ? '恢复自动旋转' : '横屏播放'} disabled={!activeSource} onClick={() => void toggleLandscape()} /></Tooltip>}
-        <Tooltip title={isFullscreen ? '退出全屏' : '全屏'}><Button type="text" shape="circle" icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />} disabled={!activeSource} onClick={() => void toggleFullscreen()} /></Tooltip>
+        <Button type="text" shape="circle" icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />} aria-label={isFullscreen ? '退出全屏' : '全屏'} disabled={!activeSource} onClick={() => void toggleFullscreen()} />
       </div>}
     </section>
     {error && <div className="video-player-error" role="alert">{error}</div>}
