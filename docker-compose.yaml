@@ -93,6 +93,17 @@ services:
       api:
         condition: service_healthy
 
+  tmdb-proxy-bridge:
+    profiles: ["tmdb-proxy"]
+    build: ./deploy/tmdb-proxy-bridge
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      TMDB_PROXY_BRIDGE_PORT: ${TMDB_PROXY_BRIDGE_PORT:-11080}
+      TMDB_PROXY_UPSTREAM_HOST: ${TMDB_PROXY_UPSTREAM_HOST:-127.0.0.1}
+      TMDB_PROXY_UPSTREAM_PORT: ${TMDB_PROXY_UPSTREAM_PORT:-1080}
+      TMDB_PROXY_ALLOWED_RANGE: ${TMDB_PROXY_ALLOWED_RANGE:-172.16.0.0/12}
+
 volumes:
   postgres_data:
   upload_data:

@@ -1,5 +1,5 @@
 import nodeFetch from 'node-fetch'
-import { ProxyAgent } from 'proxy-agent'
+import { createFixedProxyAgent } from './proxyAgent.js'
 
 function providerError(message, status = 502) {
   return Object.assign(new Error(message), { status })
@@ -83,9 +83,9 @@ export function createTmdbProvider(options = {}) {
   let proxyAgent
   if (proxyUrl) {
     try {
-      proxyAgent = new ProxyAgent(proxyUrl)
-    } catch (error) {
-      throw providerError(`TMDB 代理配置无效: ${error.message}`, 500)
+      proxyAgent = createFixedProxyAgent(proxyUrl)
+    } catch {
+      throw providerError('TMDB 代理配置无效', 500)
     }
   }
   // Tests and embedding applications can inject fetch. Production uses node-fetch

@@ -5,6 +5,7 @@ import { createBaofengProvider, createFeifanProvider, createXinlangProvider, cre
 import { createNiuniuProvider, normalizeNiuniuResults } from './niuniuProvider.js'
 import { createPlayableSearch } from './playableSearch.js'
 import { createPosterProxy } from './posterProxy.js'
+import { createFixedProxyAgent } from './proxyAgent.js'
 import { createMediaLibraryService } from './service.js'
 import { createTmdbProvider, normalizeTmdbDetail, normalizeTmdbSearch } from './tmdbProvider.js'
 import { createMediaLibraryRepository } from './repository.js'
@@ -65,6 +66,17 @@ test('TMDB API Key 模式只发往官方接口', async () => {
   } })
   assert.deepEqual(await provider.search('电影'), [])
   await assert.rejects(provider.get('movie', '../bad'), /TMDB 条目无效/)
+})
+
+test('TMDB 固定使用配置的代理且拒绝无效协议', async () => {
+  const proxyUrl = 'socks5h://proxy-user:proxy-pass@host.docker.internal:1080'
+  const agent = createFixedProxyAgent(proxyUrl)
+  assert.equal(await agent.getProxyForUrl('https://api.themoviedb.org/3/search/multi'), proxyUrl)
+  assert.equal(await agent.getProxyForUrl('https://image.tmdb.org/t/p/w500/test.jpg'), proxyUrl)
+  assert.throws(() => createFixedProxyAgent('ftp://host.docker.internal:1080'), /代理地址无效/)
+  assert.throws(() => createTmdbProvider({ accessToken: 'test-secret', proxyUrl: 'not-a-url' }), (error) => (
+    error.status === 500 && error.message === 'TMDB 代理配置无效' && !error.message.includes('test-secret')
+  ))
 })
 
 test('海报代理允许指定规格 TMDB 图片且拒绝非预期地址', async () => {
