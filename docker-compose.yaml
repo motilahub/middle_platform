@@ -1,6 +1,8 @@
 services:
   postgres:
     image: postgres:15-alpine
+    ports:
+      - "8056:5432"
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-middle_workbench}
