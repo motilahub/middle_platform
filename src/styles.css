@@ -571,13 +571,16 @@
 .media-douban-results { min-height: 280px; margin-top: 18px; }
 .media-resource-alert { margin-top: 12px; }
 .media-resource-no-poster { width: 54px; height: 76px; background: #eef2f7; }
-.media-douban-result { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 92px; padding: 12px 0; border-bottom: 1px solid #edf0f4; }
+.media-douban-result { display: grid; grid-template-columns: 28px 54px minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 92px; padding: 12px 0; border-bottom: 1px solid #edf0f4; }
+.media-douban-result:nth-child(even) { background: #f8fafc; }
+.media-resource-index { color: #98a2b3; font-variant-numeric: tabular-nums; text-align: right; }
 .media-douban-result > img { width: 54px; height: 76px; border-radius: 3px; background: #eef2f7; object-fit: cover; }
 .media-douban-result-copy { min-width: 0; }
 .media-douban-result-copy strong { display: block; overflow: hidden; margin-bottom: 6px; color: #172033; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
 .media-douban-result-copy div { margin-bottom: 5px; color: #667085; font-size: 12px; }
 .media-douban-result-copy .ant-tag { display: inline-block; width: auto; margin-right: 6px; }
 .media-douban-result-copy span { display: -webkit-box; overflow: hidden; color: #667085; font-size: 12px; line-height: 18px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.media-resource-pagination { display: flex; justify-content: flex-end; margin-top: 16px; }
 .media-library-page.is-dark { color: #e5e7eb; background: #101216; color-scheme: dark; }
 .media-library-page.is-dark .workbench-header { border-bottom-color: #292e37; color: #f3f4f6; background: #171a20; }
 .media-library-page.is-dark .system-footer { color: #8f98a7; background: #101216; }
@@ -616,9 +619,9 @@
   .media-episode-grid { --episode-tile-width: 40px; gap: 7px; }
   .media-admin-filters { grid-template-columns: 1fr; }
   .media-admin-title span { display: block; }
-  .media-douban-result { grid-template-columns: 46px minmax(0, 1fr); gap: 10px; }
+  .media-douban-result { grid-template-columns: 24px 46px minmax(0, 1fr); gap: 10px; }
   .media-douban-result > img { width: 46px; height: 66px; }
-  .media-douban-result > .ant-btn { grid-column: 2; justify-self: start; }
+  .media-douban-result > .ant-btn { grid-column: 3; justify-self: start; }
 }
 .sider-brand { width: 100%; border: 0; color: inherit; background: transparent; cursor: pointer; text-align: left; }
 .ai-chat-page .ai-knowledge-select { pointer-events: auto !important; opacity: 1 !important; width: 140px; }

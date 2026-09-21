@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createDoubanProvider, episodeCountFrom, episodeProgressFrom, normalizeDoubanDetail, normalizeDoubanItems, normalizeDoubanSearch } from './doubanProvider.js'
+import { createDoubanProvider, episodeCountFrom, episodeProgressFrom, normalizeDoubanDetail, normalizeDoubanItems, normalizeDoubanSearch, normalizeDoubanWebSearch, parseDoubanSearchPage } from './doubanProvider.js'
 import { createBaofengProvider, createFeifanProvider, createXinlangProvider, createYzy1080Provider, createZy360Provider, normalizeMacCmsResults } from './macCmsProvider.js'
 import { createNiuniuProvider, normalizeNiuniuResults } from './niuniuProvider.js'
 import { createPlayableSearch } from './playableSearch.js'
 import { createPosterProxy } from './posterProxy.js'
 import { createFixedProxyAgent } from './proxyAgent.js'
-import { createMediaLibraryService } from './service.js'
+import { compareResourceSearchResults, createMediaLibraryService } from './service.js'
 import { createTmdbProvider, normalizeTmdbDetail, normalizeTmdbSearch } from './tmdbProvider.js'
 import { createMediaLibraryRepository } from './repository.js'
 
@@ -66,6 +66,21 @@ test('TMDB API Key 模式只发往官方接口', async () => {
   } })
   assert.deepEqual(await provider.search('电影'), [])
   await assert.rejects(provider.get('movie', '../bad'), /TMDB 条目无效/)
+})
+
+test('TMDB 搜索在有后续页时合并前两页并去重', async () => {
+  const pages = []
+  const provider = createTmdbProvider({ accessToken: 'test-secret', fetch: async (url) => {
+    const page = Number(new URL(url).searchParams.get('page'))
+    pages.push(page)
+    return Response.json({ total_pages: 3, results: [
+      { id: page === 1 ? 10 : 11, title: page === 1 ? '命运之夜' : '命运之夜 无限剑制', media_type: 'movie' },
+      ...(page === 2 ? [{ id: 10, title: '重复条目', media_type: 'movie' }] : []),
+    ] })
+  } })
+  const results = await provider.search('命运', 40)
+  assert.deepEqual(pages, [1, 2])
+  assert.deepEqual(results.map((item) => item.title), ['命运之夜', '命运之夜 无限剑制'])
 })
 
 test('TMDB 固定使用配置的代理且拒绝无效协议', async () => {
@@ -246,6 +261,19 @@ test('豆瓣名称搜索只保留电影和电视剧', () => {
   assert.equal(results[0].externalId, '25754848')
 })
 
+test('豆瓣搜索页结构化数据支持包含关键词的模糊结果', () => {
+  const data = { items: [
+    { id: 1727200, title: '命运之夜 Fate/stay night‎ (2006)', tpl_name: 'search_subject', labels: [{ text: '剧集' }], abstract: '日本 / 动画 / 冒险', rating: { value: 7.9 } },
+    { id: 1, title: '非影视', tpl_name: 'search_person' },
+  ] }
+  const body = parseDoubanSearchPage(`<script>window.__DATA__ = ${JSON.stringify(data)};\nwindow.__USER__ = {}</script>`)
+  const results = normalizeDoubanWebSearch(body)
+  assert.deepEqual(results.map(({ externalId, mediaType, contentCategory, year }) => ({ externalId, mediaType, contentCategory, year })), [
+    { externalId: '1727200', mediaType: 'tv', contentCategory: 'anime', year: 2006 },
+  ])
+  assert.equal(results[0].title, '命运之夜')
+})
+
 test('豆瓣详情可转换为手工入库数据', () => {
   const item = normalizeDoubanDetail({
     id: '25754848', type: 'tv', title: '琅琊榜', year: '2015', episodes_count: 54,
@@ -259,22 +287,24 @@ test('豆瓣详情可转换为手工入库数据', () => {
   assert.equal(item.ranking, null)
 })
 
-test('豆瓣 Provider 优先通过移动端搜索并读取正式详情', async () => {
+test('豆瓣 Provider 合并搜索页前两页并按 ID 去重', async () => {
   const requestedUrls = []
   const provider = createDoubanProvider({
     fetch: async (url) => {
-      requestedUrls.push(String(url))
-      if (String(url).includes('/api/v2/search')) return Response.json({ subjects: { items: [
-        { target_type: 'tv', target: { id: '25754848', title: '琅琊榜', year: '2015' } },
-        { target_type: 'book', target: { id: '2326571', title: '琅琊榜' } },
-      ] } })
-      return new Response(JSON.stringify({ id: '25754848', type: 'tv', title: '琅琊榜', year: '2015', episodes_count: 54, rating: { value: 9.4 } }))
+      const parsedUrl = new URL(url)
+      requestedUrls.push(parsedUrl)
+      const start = Number(parsedUrl.searchParams.get('start'))
+      const items = [
+        { id: '25754848', title: '琅琊榜‎ (2015)', tpl_name: 'search_subject', labels: [{ text: '剧集' }], rating: { value: 9.4 } },
+        ...(start === 15 ? [{ id: '25754848', title: '重复条目‎ (2015)', tpl_name: 'search_subject' }, { id: '1727200', title: '命运之夜‎ (2006)', tpl_name: 'search_subject', labels: [{ text: '剧集' }] }] : []),
+      ]
+      return new Response(`<script>window.__DATA__ = ${JSON.stringify({ items })};\nwindow.__USER__ = {}</script>`)
     },
   })
-  const results = await provider.search('琅琊榜')
-  assert.match(requestedUrls[0], /m\.douban\.com\/rexxar\/api\/v2\/search/)
-  assert.match(requestedUrls[1], /rexxar\/api\/v2\/movie\/25754848/)
+  const results = await provider.search('命运')
   assert.equal(requestedUrls.length, 2)
+  assert.deepEqual(requestedUrls.map((url) => url.searchParams.get('start')), ['0', '15'])
+  assert.deepEqual(results.map((item) => item.externalId), ['25754848', '1727200'])
   assert.equal(results[0].mediaType, 'tv')
   assert.equal(results[0].rating, 9.4)
 })
@@ -282,6 +312,7 @@ test('豆瓣 Provider 优先通过移动端搜索并读取正式详情', async (
 test('豆瓣移动端搜索受限时回退联想接口，详情不可用仍显示基础信息', async () => {
   const provider = createDoubanProvider({
     fetch: async (url) => {
+      if (String(url).includes('search.douban.com')) return new Response('', { status: 403 })
       if (String(url).includes('/api/v2/search')) return new Response('', { status: 403 })
       if (String(url).includes('subject_suggest')) return Response.json([{ id: '25754848', title: '琅琊榜', type: 'movie', episode: '54' }])
       return new Response('', { status: 503 })
@@ -295,11 +326,19 @@ test('豆瓣移动端搜索受限时回退联想接口，详情不可用仍显�
 
 test('豆瓣移动端受限且联想接口返回空时明确报错', async () => {
   const provider = createDoubanProvider({
-    fetch: async (url) => String(url).includes('/api/v2/search')
-      ? new Response('', { status: 403 })
-      : Response.json([]),
+    fetch: async (url) => String(url).includes('subject_suggest') ? Response.json([]) : new Response('', { status: 403 }),
   })
   await assert.rejects(provider.search('测试影片'), /豆瓣搜索返回 403/)
+})
+
+test('资源搜索结果跨来源按名称排序', () => {
+  const results = [
+    { source: 'douban', title: '命运之夜 前传', year: 2011 },
+    { source: 'tmdb', title: '命运之夜', year: 2006 },
+    { source: 'douban', title: '命运', year: 2024 },
+    { source: 'tmdb', title: '命运', year: 2010 },
+  ].sort(compareResourceSearchResults)
+  assert.deepEqual(results.map((item) => `${item.title}:${item.year}`), ['命运:2024', '命运:2010', '命运之夜:2006', '命运之夜 前传:2011'])
 })
 
 test('影视库同步合并并发请求并按类型各读取最多五页', async () => {

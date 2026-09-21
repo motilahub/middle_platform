@@ -23,6 +23,14 @@ function optionalText(value, maxLength) {
   return String(value || '').trim().slice(0, maxLength) || null
 }
 
+const resourceTitleCollator = new Intl.Collator('zh-CN', { numeric: true, sensitivity: 'base' })
+
+export function compareResourceSearchResults(left, right) {
+  return resourceTitleCollator.compare(String(left?.title || ''), String(right?.title || '')) ||
+    (Number(right?.year) || 0) - (Number(left?.year) || 0) ||
+    resourceTitleCollator.compare(String(left?.source || ''), String(right?.source || ''))
+}
+
 function optionalNumber(value, label, { integer = false, min = 0, max } = {}) {
   if (value === undefined || value === null || value === '') return null
   const number = Number(value)
@@ -192,7 +200,7 @@ export function createMediaLibraryService(repository, doubanProvider, playableSe
         return results.map((item) => ({ ...item, source: provider.id, inLibrary: existing.has(item.externalId) }))
       }))
       return {
-        results: settled.flatMap((entry) => entry.status === 'fulfilled' ? entry.value : []),
+        results: settled.flatMap((entry) => entry.status === 'fulfilled' ? entry.value : []).sort(compareResourceSearchResults),
         providers: settled.map((entry, index) => ({
           source: providers[index].id, name: providers[index].name,
           status: entry.status === 'fulfilled' ? 'success' : providers[index].configured === false ? 'unconfigured' : 'failed',
