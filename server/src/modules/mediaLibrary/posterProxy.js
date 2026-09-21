@@ -1,3 +1,6 @@
+import nodeFetch from 'node-fetch'
+import { ProxyAgent } from 'proxy-agent'
+
 const MAX_POSTER_BYTES = 5 * 1024 * 1024
 const DOUBAN_IMAGE_HOST = /(^|\.)doubanio\.com$/i
 const ALLOWED_IMAGE_TYPES = new Set(['image/avif', 'image/gif', 'image/jpeg', 'image/png', 'image/webp'])
@@ -18,25 +21,43 @@ function validatePosterUrl(value) {
 
 async function readLimitedBody(response) {
   if (!response.body) throw posterError('海报文件无效')
-  const reader = response.body.getReader()
   const chunks = []
   let total = 0
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    total += value.byteLength
-    if (total > MAX_POSTER_BYTES) {
-      await reader.cancel()
-      throw posterError('海报文件过大')
+  if (typeof response.body.getReader === 'function') {
+    const reader = response.body.getReader()
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.byteLength
+      if (total > MAX_POSTER_BYTES) {
+        await reader.cancel()
+        throw posterError('海报文件过大')
+      }
+      chunks.push(Buffer.from(value))
     }
-    chunks.push(Buffer.from(value))
+  } else {
+    for await (const value of response.body) {
+      total += value.length
+      if (total > MAX_POSTER_BYTES) {
+        response.body.destroy?.()
+        throw posterError('海报文件过大')
+      }
+      chunks.push(Buffer.from(value))
+    }
   }
   if (!total) throw posterError('海报文件无效')
   return Buffer.concat(chunks, total)
 }
 
 export function createPosterProxy(options = {}) {
-  const request = options.fetch || fetch
+  const proxyUrl = String(options.proxyUrl ?? process.env.TMDB_PROXY_URL ?? process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY ?? '').trim()
+  let proxyAgent
+  if (proxyUrl) {
+    try { proxyAgent = new ProxyAgent(proxyUrl) } catch (error) { throw posterError(`海报代理配置无效: ${error.message}`, 500) }
+  }
+  const request = options.fetch || (proxyAgent
+    ? (url, init) => nodeFetch(url, { ...init, agent: proxyAgent })
+    : fetch)
   const timeoutMs = Math.min(15000, Math.max(1000, Number(options.timeoutMs) || 8000))
 
   return {
