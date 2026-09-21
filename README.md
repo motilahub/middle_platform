@@ -208,6 +208,7 @@ DOUBAN_TV_COLLECTION=tv_hot
 DOUBAN_TIMEOUT_MS=12000
 TMDB_ACCESS_TOKEN=
 TMDB_API_KEY=
+TMDB_PROXY_URL=
 TMDB_TIMEOUT_MS=12000
 MEDIA_LIBRARY_SYNC_LIMIT=250
 MEDIA_LIBRARY_PROGRESS_SYNC_INTERVAL_MS=21600000
@@ -215,7 +216,7 @@ MEDIA_LIBRARY_PROGRESS_SYNC_INTERVAL_MS=21600000
 
 `MEDIA_LIBRARY_SYNC_LIMIT` 同时控制电影和电视剧的榜单同步数量，默认及最大值均为 250；Provider 每页读取 50 条，最多自动读取 5 页，并在榜单实际数据提前取完时停止。`MEDIA_LIBRARY_PROGRESS_SYNC_INTERVAL_MS` 可调整自动刷新周期，最小为 5 分钟；设置为 `0` 可关闭定时刷新。
 
-TMDB 搜索使用官方 `/3/search/multi`，详情读取 `/3/movie/{id}` 或 `/3/tv/{id}`，中文资料及演职员随详情一起读取。部署时在 API 端配置 `TMDB_ACCESS_TOKEN`（推荐）或 `TMDB_API_KEY`；未配置时豆瓣搜索仍可用，管理页会提示 TMDB 未配置。凭据不返回前端，海报只通过受限的豆瓣/TMDB 图片代理获取。
+TMDB 搜索使用官方 `/3/search/multi`，详情读取 `/3/movie/{id}` 或 `/3/tv/{id}`，中文资料及演职员随详情一起读取。部署时在 API 端配置 `TMDB_ACCESS_TOKEN`（推荐）或 `TMDB_API_KEY`；未配置时豆瓣搜索仍可用，管理页会提示 TMDB 未配置。服务器无法直连 TMDB 时，可配置 `TMDB_PROXY_URL` 使用 HTTP(S) 或 SOCKS 代理，例如 `socks5h://host.docker.internal:1080`（`socks5h` 会通过代理解析域名）。Docker Compose 已提供 `host.docker.internal` 到宿主机网关的解析，但宿主机代理必须允许来自 Docker 网桥的连接，不能只监听 `127.0.0.1`。凭据不返回前端，海报只通过受限的豆瓣/TMDB 图片代理获取。
 
 电影可直接选择“在线播放”或“网盘资源”；电视剧点击可用集数后会立即搜索并播放对应剧集，无需再次点击“在线播放”。网盘资源始终只用影视名称检索，抽屉标题也只显示影视名称，不拼接电视剧集数；抽屉内可按百度、夸克、UC、迅雷筛选，并可即时搜索资源名称、搜索源或来源线路。在线播放通过 `server/src/modules/mediaLibrary/playableSearch.js` 的 Provider 协议扩展，默认依次查询暴风资源、1080影视、新浪资源、牛牛资源、非凡资源和360资源。标准 MacCMS 来源按完全相同片名、年份、播放器标识和集数筛选，只接受无需专用解析器的 HTTPS M3U8；牛牛先通过官网名称建议接口定位完全匹配的资源 ID，再从 `nnm3u8` 接口读取详情；两类来源在已标注集数时都不会用列表位置回退到其他集。各 Provider 独立查询，一个来源无匹配或不可用不会影响其他来源；详情页默认播放首个结果；不同播放地址分别作为备选线路，编号和简短来源名在播放器右侧可自动收起的面板中展示，切换线路后也会自动播放。来源 CDN 若针对当前浏览器返回 CORS、403、区域限制或失效地址，播放器会从本次列表移除该线路并自动加载下一条可用线路。媒体清单和分片均由用户浏览器直连源站，不经过平台 API。
 

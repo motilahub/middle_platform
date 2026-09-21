@@ -1,3 +1,6 @@
+import nodeFetch from 'node-fetch'
+import { ProxyAgent } from 'proxy-agent'
+
 function providerError(message, status = 502) {
   return Object.assign(new Error(message), { status })
 }
@@ -76,7 +79,20 @@ export function createTmdbProvider(options = {}) {
   const accessToken = String(options.accessToken ?? process.env.TMDB_ACCESS_TOKEN ?? '').trim()
   const apiKey = String(options.apiKey ?? process.env.TMDB_API_KEY ?? '').trim()
   const configured = Boolean(accessToken || apiKey)
-  const request = options.fetch || fetch
+  const proxyUrl = String(options.proxyUrl ?? process.env.TMDB_PROXY_URL ?? process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY ?? '').trim()
+  let proxyAgent
+  if (proxyUrl) {
+    try {
+      proxyAgent = new ProxyAgent(proxyUrl)
+    } catch (error) {
+      throw providerError(`TMDB 代理配置无效: ${error.message}`, 500)
+    }
+  }
+  // Tests and embedding applications can inject fetch. Production uses node-fetch
+  // only when a proxy is configured, because the native fetch API has no SOCKS agent.
+  const request = options.fetch || (proxyAgent
+    ? (url, init) => nodeFetch(url, { ...init, agent: proxyAgent })
+    : fetch)
   const timeoutMs = Math.min(30000, Math.max(1000, Number(options.timeoutMs ?? process.env.TMDB_TIMEOUT_MS) || 12000))
 
   async function fetchJson(path, params = {}) {

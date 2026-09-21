@@ -38,6 +38,7 @@ services:
       DOUBAN_TIMEOUT_MS: ${DOUBAN_TIMEOUT_MS:-12000}
       TMDB_ACCESS_TOKEN: ${TMDB_ACCESS_TOKEN:-}
       TMDB_API_KEY: ${TMDB_API_KEY:-}
+      TMDB_PROXY_URL: ${TMDB_PROXY_URL:-}
       TMDB_TIMEOUT_MS: ${TMDB_TIMEOUT_MS:-12000}
       MEDIA_LIBRARY_SYNC_LIMIT: ${MEDIA_LIBRARY_SYNC_LIMIT:-250}
       MEDIA_LIBRARY_PROGRESS_SYNC_INTERVAL_MS: ${MEDIA_LIBRARY_PROGRESS_SYNC_INTERVAL_MS:-21600000}
@@ -63,6 +64,8 @@ services:
     volumes:
       - ./server/src:/app/src:ro
       - upload_data:/app/uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
