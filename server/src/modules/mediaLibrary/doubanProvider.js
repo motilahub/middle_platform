@@ -103,6 +103,42 @@ export function normalizeDoubanSearch(body) {
   })
 }
 
+export function normalizeDoubanWebSearch(body) {
+  const items = Array.isArray(body?.items) ? body.items : []
+  return items.flatMap((entry) => {
+    const externalId = String(entry?.id || '').trim()
+    const rawTitle = String(entry?.title || '').replace(/[\u200e\u200f]/g, '').trim()
+    const titleWithOriginal = rawTitle.replace(/\s*\((?:19|20)\d{2}\)\s*$/, '').trim()
+    const title = titleWithOriginal.match(/^(.+[\u3400-\u9fff])\s+(?=[^\u3400-\u9fff\s])/)?.[1] || titleWithOriginal
+    if (!/^\d+$/.test(externalId) || !title || entry?.tpl_name !== 'search_subject') return []
+    const labels = Array.isArray(entry.labels) ? entry.labels.map((label) => String(label?.text || '')) : []
+    const rating = Number(entry?.rating?.value)
+    return [{
+      externalId,
+      mediaType: labels.includes('剧集') ? 'tv' : 'movie',
+      contentCategory: /动画|动漫|anime|animation/i.test(String(entry.abstract || '')) ? 'anime' : 'general',
+      title: title.slice(0, 300),
+      year: yearFrom({ year: rawTitle }),
+      posterUrl: String(entry?.cover_url || '').trim() || null,
+      rating: Number.isFinite(rating) && rating > 0 ? rating : null,
+      subtitle: String(entry?.abstract || '').trim().slice(0, 1000),
+      sourceUrl: `https://movie.douban.com/subject/${externalId}/`,
+    }]
+  })
+}
+
+export function parseDoubanSearchPage(html) {
+  const content = String(html || '')
+  if (content.length > 1024 * 1024) throw providerError('豆瓣搜索返回内容过大')
+  const startMarker = 'window.__DATA__ = '
+  const endMarker = 'window.__USER__'
+  const start = content.indexOf(startMarker)
+  const end = content.indexOf(endMarker, start + startMarker.length)
+  if (start < 0 || end < 0) throw providerError('豆瓣搜索未返回有效数据')
+  const json = content.slice(start + startMarker.length, end).trim().replace(/;\s*$/, '')
+  try { return JSON.parse(json) } catch { throw providerError('豆瓣搜索未返回有效数据') }
+}
+
 export function normalizeDoubanDetail(body, mediaType) {
   const externalId = String(body?.id || '').trim()
   const title = String(body?.title || '').trim()
@@ -173,6 +209,29 @@ export function createDoubanProvider(options = {}) {
     try { return await response.json() } catch { throw providerError(`${label}未返回有效数据`) }
   }
 
+  async function fetchSearchPage(keyword, start) {
+    const url = new URL('/movie/subject_search', 'https://search.douban.com')
+    url.searchParams.set('search_text', keyword)
+    url.searchParams.set('cat', '1002')
+    url.searchParams.set('start', String(start))
+    let response
+    try {
+      response = await request(url, {
+        headers: {
+          accept: 'text/html,application/xhtml+xml',
+          referer: 'https://movie.douban.com/',
+          'user-agent': 'Mozilla/5.0 (compatible; MotilaMediaLibrary/1.0)',
+        },
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+    } catch (error) {
+      if (error?.name === 'TimeoutError' || error?.name === 'AbortError') throw providerError('豆瓣搜索请求超时', 504)
+      throw providerError('暂时无法连接豆瓣搜索')
+    }
+    if (!response.ok) throw providerError(`豆瓣搜索返回 ${response.status}`)
+    return normalizeDoubanWebSearch(parseDoubanSearchPage(await response.text()))
+  }
+
   async function list(mediaType, limit = 250) {
     if (!['movie', 'tv'].includes(mediaType)) throw providerError('不支持的影视类型', 400)
     const collection = mediaType === 'movie' ? movieCollection : tvCollection
@@ -203,44 +262,38 @@ export function createDoubanProvider(options = {}) {
     return items.slice(0, safeLimit)
   }
 
-  async function search(value, limit = 10) {
+  async function search(value, limit = 30) {
     const keyword = String(value || '').trim().slice(0, 100)
     if (!keyword) throw providerError('请输入影视名称', 400)
-    const safeLimit = Math.min(20, Math.max(1, Number(limit) || 10))
+    const safeLimit = Math.min(30, Math.max(1, Number(limit) || 30))
     let candidates = []
     let searchError
     try {
-      const body = await fetchJson('/rexxar/api/v2/search', { q: keyword }, '豆瓣搜索')
-      if (body?.code) throw providerError(`豆瓣搜索暂不可用（${body.code}）`)
-      candidates = normalizeDoubanSearch(body)
+      const pages = await Promise.allSettled([0, 15].slice(0, Math.ceil(safeLimit / 15)).map((start) => fetchSearchPage(keyword, start)))
+      candidates = pages.flatMap((entry) => entry.status === 'fulfilled' ? entry.value : [])
+      const seen = new Set()
+      candidates = candidates.filter((candidate) => {
+        if (seen.has(candidate.externalId)) return false
+        seen.add(candidate.externalId)
+        return true
+      })
+      if (!candidates.length) searchError = pages.find((entry) => entry.status === 'rejected')?.reason
     } catch (error) { searchError = error }
+    if (!candidates.length) {
+      try {
+        const body = await fetchJson('/rexxar/api/v2/search', { q: keyword }, '豆瓣搜索')
+        if (body?.code) throw providerError(`豆瓣搜索暂不可用（${body.code}）`)
+        candidates = normalizeDoubanSearch(body)
+      } catch (error) { if (!searchError) searchError = error }
+    }
     if (!candidates.length) {
       try {
         const body = await fetchJson('https://movie.douban.com/j/subject_suggest', { q: keyword }, '豆瓣搜索', 'https://movie.douban.com/')
         candidates = normalizeDoubanSearch(body)
-      } catch (error) { if (!searchError) throw error }
+      } catch (error) { if (!searchError) searchError = error }
     }
     if (!candidates.length && searchError) throw searchError
-    const settled = await Promise.allSettled(candidates.slice(0, safeLimit).map(async (candidate) => {
-      try {
-        const detail = await fetchJson(`/rexxar/api/v2/movie/${candidate.externalId}`, {}, '豆瓣条目')
-        const item = normalizeDoubanDetail(detail, detail?.type)
-        return {
-          externalId: item.externalId,
-          mediaType: item.mediaType,
-          contentCategory: item.contentCategory,
-          title: item.title,
-          year: item.year,
-          posterUrl: item.posterUrl,
-          rating: item.rating,
-          subtitle: item.metadata.subtitle,
-          sourceUrl: item.sourceUrl,
-        }
-      } catch {
-        return candidate
-      }
-    }))
-    return settled.flatMap((entry) => entry.status === 'fulfilled' ? [entry.value] : [])
+    return candidates.slice(0, safeLimit)
   }
 
   async function get(mediaType, externalId) {

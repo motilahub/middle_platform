@@ -116,11 +116,22 @@ export function createTmdbProvider(options = {}) {
 
   return {
     id: 'tmdb', name: 'TMDB', configured,
-    async search(keyword) {
+    async search(keyword, limit = 40) {
       const value = String(keyword || '').trim().slice(0, 100)
       if (!value) throw providerError('请输入影视名称', 400)
-      const body = await fetchJson('/3/search/multi', { query: value, language: 'zh-CN', include_adult: false, page: 1 })
-      return normalizeTmdbSearch(body).slice(0, 20)
+      const safeLimit = Math.min(40, Math.max(1, Number(limit) || 40))
+      const first = await fetchJson('/3/search/multi', { query: value, language: 'zh-CN', include_adult: false, page: 1 })
+      const bodies = [first]
+      if (safeLimit > 20 && Number(first?.total_pages) > 1) {
+        bodies.push(await fetchJson('/3/search/multi', { query: value, language: 'zh-CN', include_adult: false, page: 2 }))
+      }
+      const seen = new Set()
+      return bodies.flatMap(normalizeTmdbSearch).filter((item) => {
+        const key = `${item.mediaType}:${item.externalId}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      }).slice(0, safeLimit)
     },
     async get(mediaType, externalId) {
       if (!['movie', 'tv'].includes(mediaType) || !/^[1-9]\d*$/.test(String(externalId))) throw providerError('TMDB 条目无效', 400)

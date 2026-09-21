@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, App, Button, Drawer, Empty, Form, Grid, Image, Input, InputNumber, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd'
+import { Alert, App, Button, Drawer, Empty, Form, Grid, Image, Input, InputNumber, Pagination, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd'
 import { CloudSyncOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth'
@@ -8,6 +8,7 @@ import { episodeLabel } from './episode'
 import type { ResourceSearchResponse, ResourceSearchResult, MediaItem, MediaItemInput, MediaType } from './types'
 
 const typeLabel = (type: MediaType) => type === 'movie' ? '电影' : '电视剧'
+const RESOURCE_PAGE_SIZE = 20
 
 export default function MediaLibraryConfigPage() {
   const { message } = App.useApp()
@@ -33,6 +34,8 @@ export default function MediaLibraryConfigPage() {
   const [resourceSearching, setResourceSearching] = useState(false)
   const [resourceSearched, setResourceSearched] = useState(false)
   const [resourceSearchError, setResourceSearchError] = useState('')
+  const [resourcePage, setResourcePage] = useState(1)
+  const resourcePageItems = useMemo(() => resourceResults.slice((resourcePage - 1) * RESOURCE_PAGE_SIZE, resourcePage * RESOURCE_PAGE_SIZE), [resourcePage, resourceResults])
   const [importingId, setImportingId] = useState<string>()
   const may = useCallback((operation: 'read' | 'create' | 'write' | 'unlink') => can('media.library.manage') || can(`media.library.${operation}`), [can])
 
@@ -118,6 +121,7 @@ export default function MediaLibraryConfigPage() {
     setResourceResults([])
     setResourceProviders([])
     setResourceSearchError('')
+    setResourcePage(1)
     try {
       const response = await mediaLibraryApi.searchResources(keyword)
       setResourceResults(response.results)
@@ -190,7 +194,8 @@ export default function MediaLibraryConfigPage() {
       <Input.Search autoFocus allowClear value={resourceKeyword} placeholder="输入电影、电视剧或动漫名称" enterButton="搜索" loading={resourceSearching} onChange={(event) => { setResourceKeyword(event.target.value); setResourceSearched(false); setResourceSearchError('') }} onSearch={(value) => void searchResources(value)} />
       {resourceProviders.filter((provider) => provider.status !== 'success').map((provider) => <Alert key={provider.source} className="media-resource-alert" type="warning" showIcon message={`${provider.name}：${provider.message || '暂时不可用'}`} />)}
       <div className="media-douban-results">
-        {resourceResults.length ? resourceResults.map((result) => <div className="media-douban-result" key={`${result.source}-${result.mediaType}-${result.externalId}`}>
+        {resourceResults.length ? resourcePageItems.map((result, index) => <div className="media-douban-result" key={`${result.source}-${result.mediaType}-${result.externalId}`}>
+          <span className="media-resource-index">{(resourcePage - 1) * RESOURCE_PAGE_SIZE + index + 1}</span>
           {result.posterUrl ? <img src={`/api/media-library/admin/poster?url=${encodeURIComponent(result.posterUrl)}`} alt="" /> : <div className="media-resource-no-poster" />}
           <div className="media-douban-result-copy">
             <strong>{result.title}</strong>
@@ -200,6 +205,7 @@ export default function MediaLibraryConfigPage() {
           <Button type={result.inLibrary ? 'default' : 'primary'} disabled={result.inLibrary} loading={importingId === `${result.source}-${result.externalId}`} onClick={() => void importResource(result)}>{result.inLibrary ? '已入库' : '加入影视库'}</Button>
         </div>) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={resourceSearching ? '正在搜索' : resourceSearchError || (resourceSearched ? '暂无搜索结果' : '输入名称搜索豆瓣和 TMDB')} />}
       </div>
+      {resourceResults.length > RESOURCE_PAGE_SIZE && <Pagination className="media-resource-pagination" current={resourcePage} pageSize={RESOURCE_PAGE_SIZE} total={resourceResults.length} showSizeChanger={false} onChange={setResourcePage} />}
     </Drawer>
   </div>
 }
