@@ -1,4 +1,4 @@
-import { App, Button, Empty, InputNumber, Modal, Pagination, Spin, Tag, Tooltip, Typography } from 'antd'
+import { App, Button, Empty, InputNumber, Modal, Pagination, Spin, Tag, Typography } from 'antd'
 import { ArrowLeftOutlined, CloseOutlined, ExportOutlined, LeftOutlined, RightOutlined, StarFilled } from '@ant-design/icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -218,10 +218,10 @@ export default function MediaDetailPage() {
       canPreviousEpisode={Boolean(playingEpisode && playingEpisode > 1 && !playableLoading)}
       canNextEpisode={Boolean(playingEpisode && playingEpisode < lastEpisode && !playableLoading)}
       sideContent={sourceOptions.length ? <aside className={`video-player-line-panel${linePanelOpen ? ' is-open' : ''}`} aria-label="播放线路" onMouseEnter={openLinePanel} onMouseMove={linePanelOpen ? openLinePanel : undefined} onMouseLeave={() => scheduleLinePanelClose(800)} onFocusCapture={(event) => { if (lineOptionsRef.current?.contains(event.target)) { clearTimeout(linePanelTimerRef.current); setLinePanelOpen(true) } }} onBlurCapture={(event) => { if (!lineOptionsRef.current?.contains(event.relatedTarget)) scheduleLinePanelClose(800) }} onKeyDown={(event) => { if (event.key === 'Escape') { closeLinePanel(); lineToggleRef.current?.focus() } }}>
-        <Tooltip title={linePanelOpen ? '收起线路' : '展开线路'}><Button ref={lineToggleRef} type="text" className="video-player-line-toggle" icon={linePanelOpen ? <RightOutlined /> : <LeftOutlined />} aria-label={linePanelOpen ? '收起线路' : '展开线路'} aria-expanded={linePanelOpen} onClick={() => linePanelOpen ? closeLinePanel() : openLinePanel()} /></Tooltip>
+        <Button ref={lineToggleRef} type="text" className="video-player-line-toggle" icon={linePanelOpen ? <RightOutlined /> : <LeftOutlined />} aria-label={linePanelOpen ? '收起线路' : '展开线路'} aria-expanded={linePanelOpen} onClick={() => linePanelOpen ? closeLinePanel() : openLinePanel()} />
         <div className="video-player-line-list">
           <strong>播放线路</strong>
-          <div ref={lineOptionsRef} className="video-player-line-options">{linePanelOpen && sourceOptions.map((option) => <Button key={option.value} type="text" className={activePlayableId === option.value ? 'is-active' : ''} title={option.label} aria-pressed={activePlayableId === option.value} onClick={() => { if (option.value !== activePlayableId) { setActivePlayableId(option.value); setPlayerReloadKey((key) => key + 1) } closeLinePanel(); lineToggleRef.current?.focus() }}>{option.label}</Button>)}</div>
+          <div ref={lineOptionsRef} className="video-player-line-options">{linePanelOpen && sourceOptions.map((option) => <Button key={option.value} type="text" className={activePlayableId === option.value ? 'is-active' : ''} aria-pressed={activePlayableId === option.value} onClick={() => { if (option.value !== activePlayableId) { setActivePlayableId(option.value); setPlayerReloadKey((key) => key + 1) } closeLinePanel(); lineToggleRef.current?.focus() }}>{option.label}</Button>)}</div>
         </div>
       </aside> : undefined}
     />
@@ -265,7 +265,7 @@ export default function MediaDetailPage() {
           <Button onClick={() => openPanResources(episode)}>网盘资源</Button>
         </div>
         {episodes.length
-          ? <><div ref={episodeGridRef} className="media-episode-grid">{episodes.map((number) => <Button key={number} type={episode === number ? 'primary' : 'default'} title={`第 ${number} 集`} onClick={() => selectAndPlayEpisode(number)}>{number}</Button>)}</div>
+          ? <><div ref={episodeGridRef} className="media-episode-grid">{episodes.map((number) => <Button key={number} type={episode === number ? 'primary' : 'default'} aria-label={`第 ${number} 集`} onClick={() => selectAndPlayEpisode(number)}>{number}</Button>)}</div>
             {selectableEpisodeCount && selectableEpisodeCount > episodesPerPage && <Pagination className="media-episode-pagination" size="small" responsive current={currentEpisodePage} pageSize={episodesPerPage} total={selectableEpisodeCount} showSizeChanger={false} onChange={setEpisodePage} />}</>
           : <InputNumber min={1} max={9999} value={episode} onChange={(value) => selectAndPlayEpisode(value || 1)} aria-label="集数" addonBefore="第" addonAfter="集" />}
       </section>}
@@ -274,7 +274,7 @@ export default function MediaDetailPage() {
     <SystemFooter />
     <ResourceDrawer item={item} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     <Modal className="media-floating-player" open={floatingOpen} footer={null} closable={false} maskClosable={false} width={960} centered onCancel={closeFloatingPlayer} destroyOnClose styles={{ mask: { backgroundColor: '#000' } }}>
-      <div className="media-floating-player-toolbar"><Button type="text" icon={<CloseOutlined />} aria-label="关闭播放器" title="关闭播放器" onClick={closeFloatingPlayer} /></div>
+      <div className="media-floating-player-toolbar"><Button type="text" icon={<CloseOutlined />} aria-label="关闭播放器" onClick={closeFloatingPlayer} /></div>
       {floatingOpen && player}
     </Modal>
   </div></MediaThemeProvider>
