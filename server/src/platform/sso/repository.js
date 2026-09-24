@@ -68,5 +68,13 @@ export function createSsoRepository(pool) {
     async deleteOne(id, direction) {
       await pool.query('DELETE FROM sso_configs WHERE id=$1 AND direction=$2', [id, direction])
     },
+    async listAccessLogs({ keyword = '', method = '', status = null, page = 1, pageSize = 20 } = {}) {
+      const result = await pool.query(`SELECT l.*, u.code AS user_code, u.name AS user_name, COUNT(*) OVER()::integer AS total_count
+        FROM access_logs l LEFT JOIN users u ON u.id=l.user_id
+        WHERE ($1='' OR l.path ILIKE '%' || $1 || '%' OR COALESCE(u.code,'') ILIKE '%' || $1 || '%' OR COALESCE(u.name,'') ILIKE '%' || $1 || '%' OR l.ip_address ILIKE '%' || $1 || '%')
+          AND ($2='' OR l.method=$2) AND ($3::integer IS NULL OR l.status_code=$3)
+        ORDER BY l.created_at DESC, l.id DESC LIMIT $4 OFFSET $5`, [keyword, method, status, pageSize, (page - 1) * pageSize])
+      return { rows: result.rows, total: result.rows[0]?.total_count || 0 }
+    },
   }
 }

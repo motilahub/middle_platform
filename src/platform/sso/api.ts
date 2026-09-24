@@ -10,4 +10,19 @@ export const ssoApi = {
   toggleConfig: (direction: SsoDirection, id: number, enabled: boolean) => request<void>(`/api/admin/sso/${direction}/${id}/enabled`, { method: 'PATCH', body: JSON.stringify({ enabled }) }),
   deleteConfig: (direction: SsoDirection, id: number) => request<void>(`/api/admin/sso/${direction}/${id}`, { method: 'DELETE' }),
   deleteConfigs: (direction: SsoDirection, ids: number[]) => request<void>(`/api/admin/sso/${direction}`, { method: 'DELETE', body: JSON.stringify({ ids }) }),
+  accessLogs: (params: { keyword?: string; method?: string; status?: string; page?: number; pageSize?: number } = {}) => request<{ rows: AccessLog[]; total: number; page: number; pageSize: number }>(`/api/admin/access-logs?${new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== '') as Array<[string, string]>)}`),
+}
+
+export interface AccessLog {
+  id: number
+  userCode?: string
+  userName?: string
+  method: string
+  path: string
+  statusCode: number
+  ipAddress?: string
+  userAgent?: string
+  referer?: string
+  durationMs?: number
+  createdAt: string
 }

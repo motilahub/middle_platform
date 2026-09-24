@@ -37,5 +37,8 @@ export function createSsoController(service, establishSession) {
       await service.deleteOne(req.params.id, req.params.direction)
       res.status(204).end()
     },
+    async accessLogs(req, res) {
+      res.json(await service.listAccessLogs(req.query))
+    },
   }
 }

@@ -14,4 +14,5 @@ export function registerSsoRoutes(app, controller, { asyncRoute, requireAuth, re
   app.patch('/api/admin/sso/:direction/:id/enabled', requirePermission('platform.sso.write'), requireDirection, asyncRoute(controller.setEnabled))
   app.delete('/api/admin/sso/:direction', requirePermission('platform.sso.unlink'), requireDirection, asyncRoute(controller.deleteMany))
   app.delete('/api/admin/sso/:direction/:id', requirePermission('platform.sso.unlink'), requireDirection, asyncRoute(controller.deleteOne))
+  app.get('/api/admin/access-logs', requirePermission('platform.sso.read'), asyncRoute(controller.accessLogs))
 }

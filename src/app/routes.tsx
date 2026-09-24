@@ -8,6 +8,7 @@ import DashboardConfig from '../pages/config/DashboardConfig'
 import CategoryConfig from '../pages/config/CategoryConfig'
 import UserConfig from '../pages/config/UserConfig'
 import SsoConfig from '../pages/config/SsoConfig'
+import AccessLogConfig from '../pages/config/AccessLogConfig'
 import BasicConfig from '../pages/config/SystemSecurityConfig'
 import SecurityConfig from '../pages/config/SecurityConfig'
 import PermissionGroupConfig from '../pages/config/PermissionGroupConfig'
@@ -63,6 +64,7 @@ export default function AppRoutes() {
       <Route path="ai-chat" element={<Guard requiredPermission="platform.settings.read"><AIChatConfig /></Guard>} />
       <Route path="sso/inbound" element={<Guard requiredPermission="platform.sso.read"><SsoConfig direction="inbound" /></Guard>} />
       <Route path="sso/outbound" element={<Guard requiredPermission="platform.sso.read"><SsoConfig direction="outbound" /></Guard>} />
+      <Route path="sso/access-logs" element={<Guard requiredPermission="platform.sso.read"><AccessLogConfig /></Guard>} />
       <Route path="media-library" element={<Guard requiredAnyPermissions={['media.library.read', 'media.library.manage']}><MediaLibraryConfigPage /></Guard>} />
     </Route>
     {getBusinessRouteElements()}

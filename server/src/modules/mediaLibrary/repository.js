@@ -1,6 +1,7 @@
 function mapItem(row) {
   return {
     id: Number(row.id),
+    publicId: row.public_id,
     source: row.source,
     externalId: row.external_id,
     mediaType: row.media_type,
@@ -12,6 +13,7 @@ function mapItem(row) {
     rating: row.rating === null ? null : Number(row.rating),
     ranking: row.ranking,
     summary: row.summary,
+    createdAt: row.created_at,
     releaseDate: row.release_date instanceof Date ? row.release_date.toISOString().slice(0, 10) : row.release_date,
     runtimeMinutes: row.runtime_minutes,
     genres: row.genres || [],
@@ -44,7 +46,46 @@ export function createMediaLibraryRepository(pool) {
       return result.rows.map(mapItem)
     },
 
-    async get(id) {
+    async searchCatalog({ type = null, keyword = '', genres = [], countries = [], year = null, sort = 'default', limit = 20, offset = 0 } = {}) {
+      const params = [type, keyword, genres.length ? genres : null, countries.length ? countries : null, year, sort === 'newest', limit, offset]
+      const result = await pool.query(`
+        SELECT *, COUNT(*) OVER()::integer AS total_count
+        FROM media_items
+        WHERE ($1::text IS NULL OR ($1='anime' AND content_category='anime')
+            OR ($1='movie' AND media_type='movie' AND content_category<>'anime')
+            OR ($1='tv' AND media_type='tv' AND content_category<>'anime'))
+          AND ($2='' OR title ILIKE '%' || $2 || '%' OR COALESCE(original_title,'') ILIKE '%' || $2 || '%')
+          AND ($3::text[] IS NULL OR genres && $3::text[])
+          AND ($4::text[] IS NULL OR countries && $4::text[])
+          AND ($5::integer IS NULL OR year=$5)
+        ORDER BY CASE WHEN $6::boolean THEN created_at END DESC NULLS LAST,
+          CASE WHEN NOT $6::boolean THEN (is_ranked OR added_manually)::integer END DESC,
+          CASE WHEN NOT $6::boolean THEN ranking END NULLS LAST,
+          CASE WHEN NOT $6::boolean THEN rating END DESC NULLS LAST,
+          id DESC
+        LIMIT $7 OFFSET $8`, params)
+      return {
+        items: result.rows.map(mapItem),
+        total: result.rows[0]?.total_count || 0,
+      }
+    },
+
+    async catalogFilters() {
+      const result = await pool.query(`
+        SELECT
+          (SELECT ARRAY_AGG(value ORDER BY value) FROM (SELECT DISTINCT unnest(genres) AS value FROM media_items) genres) AS genres,
+          (SELECT ARRAY_AGG(value ORDER BY value) FROM (SELECT DISTINCT unnest(countries) AS value FROM media_items) countries) AS countries,
+          (SELECT ARRAY_AGG(value ORDER BY value DESC) FROM (SELECT DISTINCT year AS value FROM media_items WHERE year IS NOT NULL) years)`)
+      const row = result.rows[0] || {}
+      return { genres: row.genres || [], countries: row.countries || [], years: row.years || [] }
+    },
+
+    async get(publicId) {
+      const result = await pool.query('SELECT * FROM media_items WHERE public_id=$1', [publicId])
+      return result.rowCount ? mapItem(result.rows[0]) : null
+    },
+
+    async getById(id) {
       const result = await pool.query('SELECT * FROM media_items WHERE id=$1', [id])
       return result.rowCount ? mapItem(result.rows[0]) : null
     },

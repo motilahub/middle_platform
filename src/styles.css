@@ -516,8 +516,18 @@
 .media-library-page, .media-library-page .workbench-header, .media-library-page .system-footer, .media-library-item { transition: color .2s ease, background-color .2s ease, border-color .2s ease; }
 .media-theme-toggle { font-size: 17px; }
 .media-library-main, .media-detail-main { width: min(1240px, 100%); flex: 1; margin: 0 auto; padding: 30px 24px 56px; }
-.media-library-filters { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 20px 0; }
-.media-library-filters .ant-input-search { width: min(360px, 100%); }
+.media-catalog-search { max-width: 760px; margin: 4px auto 22px; }
+.media-catalog-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 22px; }
+.media-catalog-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.media-catalog-tabs .ant-tag-checkable { margin: 0; padding: 5px 13px; border-radius: 5px; font-size: 14px; }
+.media-catalog-filter-dropdown .ant-dropdown-menu { padding: 0; background: transparent; box-shadow: none; }
+.media-catalog-filter-menu { box-sizing: border-box; width: 100%; max-height: min(70vh, 560px); overflow: auto; margin: 0 0 22px; padding: 18px 20px 16px; border: 1px solid #dfe4ec; border-radius: 8px; background: #fff; box-shadow: 0 12px 30px rgba(16, 24, 40, .14); }
+.media-catalog-filter-section { display: grid; gap: 11px; }
+.media-catalog-filter-section strong { color: #344054; font-size: 13px; }
+.media-catalog-filter-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.media-catalog-filter-buttons .ant-btn { min-width: 72px; }
+.media-catalog-filter-section .ant-select { width: 100%; }
+.media-catalog-filter-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; }
 .media-library-loading, .media-library-empty { min-height: 360px; display: grid; place-items: center; }
 .media-library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 24px 20px; }
 .media-library-pagination { display: flex; justify-content: center; margin-top: 34px; }
@@ -600,10 +610,21 @@
 .media-library-page.is-dark .media-detail-overview { border-bottom-color: #303640; }
 .media-library-page.is-dark .media-detail-copy h1.ant-typography, .media-library-page.is-dark .media-detail-episodes h3.ant-typography { color: #f1f3f6; }
 .media-library-page.is-dark .media-detail-summary { color: #b7bfca; }
+.media-library-page.is-dark .media-catalog-filter-section strong { color: #e5e7eb; }
+.media-library-page.is-dark .media-catalog-filter-menu { border-color: #3a414d; background: #1a1e25; box-shadow: 0 12px 30px rgba(0, 0, 0, .36); }
+.media-library-page.is-dark .media-catalog-filter-menu .ant-divider { border-color: #303640; }
+.media-library-page.is-dark .media-catalog-filter-buttons .ant-btn-default { border-color: #4a5361; color: #d0d5dd; background: #232832; }
+.media-library-page.is-dark .media-catalog-filter-buttons .ant-btn-default:hover { border-color: #7da5e8; color: #a9c7ff; }
+.media-library-page.is-dark .media-catalog-filter-menu .ant-select-selector { border-color: #4a5361; color: #f2f4f7; background: #232832; }
+.media-library-page.is-dark .media-catalog-filter-menu .ant-select-arrow { color: #98a2b3; }
 @media (max-width: 640px) {
   .media-library-main, .media-detail-main { padding: 22px 14px 40px; }
-  .media-library-filters { align-items: stretch; flex-direction: column; }
-  .media-library-filters .ant-input-search { width: 100%; }
+  .media-catalog-search { margin: 0 0 16px; }
+  .media-catalog-toolbar { align-items: flex-start; flex-direction: column; margin-bottom: 18px; }
+  .media-catalog-tabs { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px; }
+  .media-catalog-tabs .ant-tag-checkable { flex: 0 0 auto; }
+  .media-catalog-toolbar > .ant-dropdown-trigger { align-self: flex-end; }
+  .media-catalog-filter-menu { width: 100%; margin: 0 0 18px; padding-inline: 16px; }
   .media-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 10px; }
   .media-library-item-body { min-height: 72px; padding: 10px; }
   .media-library-item h2 { font-size: 14px; }

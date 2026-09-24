@@ -143,14 +143,14 @@ export default function MediaLibraryConfigPage() {
   }
 
   const columns = useMemo(() => [
-    { title: '海报', width: 72, render: (_: unknown, row: MediaItem) => <Image className="media-admin-poster" width={38} height={54} preview={false} src={`/api/media-library/items/${row.id}/poster`} fallback="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" /> },
+    { title: '海报', width: 72, render: (_: unknown, row: MediaItem) => <Image className="media-admin-poster" width={38} height={54} preview={false} src={`/api/media-library/items/${row.publicId}/poster`} fallback="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" /> },
     { title: '名称', dataIndex: 'title', ellipsis: true, render: (value: string, row: MediaItem) => <div className="media-admin-title"><strong>{value}</strong><span>{typeLabel(row.mediaType)}{row.year ? ` · ${row.year}` : ''}{` · ${(row.rating || 0).toFixed(1)} 分`}</span></div> },
     { title: '类型', dataIndex: 'mediaType', width: 90, responsive: ['md'] as Array<'md'>, render: typeLabel },
     { title: '年份', dataIndex: 'year', width: 90, responsive: ['md'] as Array<'md'>, render: (value?: number) => value || '-' },
     { title: '评分', dataIndex: 'rating', width: 90, responsive: ['md'] as Array<'md'>, render: (value?: number) => (value || 0).toFixed(1) },
     { title: '来源', width: 180, responsive: ['md'] as Array<'md'>, render: (_: unknown, row: MediaItem) => <Space size={4}>{row.source !== 'manual' && <Tag>{row.source === 'tmdb' ? 'TMDB' : '豆瓣'}</Tag>}{row.contentCategory === 'anime' && <Tag>动漫</Tag>}{row.isRanked && <Tag color="blue">榜单</Tag>}{row.addedManually && <Tag color="green">手工加入</Tag>}{!row.isRanked && !row.addedManually && <Tag>历史</Tag>}</Space> },
     { title: '集数', width: 150, responsive: ['md'] as Array<'md'>, render: (_: unknown, row: MediaItem) => episodeLabel(row) || '-' },
-    { title: '操作', width: 190, fixed: 'right' as const, render: (_: unknown, row: MediaItem) => <Space size={0}><Button type="link" onClick={() => navigate(`/media-library/${row.id}`)}>查看</Button>{may('write') && <Button type="link" onClick={() => openEdit(row)}>编辑</Button>}{may('unlink') && <Popconfirm title="确认删除该影视？" description={row.isRanked ? '下次同步榜单时可能重新加入。' : undefined} onConfirm={() => void remove([row.id])}><Button type="link" danger>删除</Button></Popconfirm>}</Space> },
+    { title: '操作', width: 190, fixed: 'right' as const, render: (_: unknown, row: MediaItem) => <Space size={0}><Button type="link" onClick={() => navigate(`/media-library/${row.publicId}`)}>查看</Button>{may('write') && <Button type="link" onClick={() => openEdit(row)}>编辑</Button>}{may('unlink') && <Popconfirm title="确认删除该影视？" description={row.isRanked ? '下次同步榜单时可能重新加入。' : undefined} onConfirm={() => void remove([row.id])}><Button type="link" danger>删除</Button></Popconfirm>}</Space> },
   ], [may, navigate, rows])
 
   return <div>
