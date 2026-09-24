@@ -56,6 +56,19 @@ app.use((_req, res, next) => {
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   next()
 })
+app.use((req, res, next) => {
+  const startedAt = Date.now()
+  res.once('finish', () => {
+    if (req.path === '/api/admin/access-logs' || req.path === '/api/health') return
+    pool.query(`INSERT INTO access_logs(user_id,method,path,status_code,ip_address,user_agent,referer,duration_ms)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [
+      req.session?.user?.id || null, req.method, req.path, res.statusCode,
+      req.ip || req.socket.remoteAddress || null, req.get('user-agent') || null,
+      req.get('referer') || null, Date.now() - startedAt,
+    ]).catch((error) => console.error('访问日志写入失败', error))
+  })
+  next()
+})
 app.use('/uploads', express.static(uploadRoot, { fallthrough: false, maxAge: '7d' }))
 app.use(normalizeVersionedApi)
 

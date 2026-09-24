@@ -89,6 +89,13 @@ export function createSsoService(repository, mapUser, permissionService) {
     async list(direction) {
       return (await repository.list(direction)).map(mapSsoConfig)
     },
+    async listAccessLogs(input = {}) {
+      const page = Math.max(1, Math.min(100000, Number(input.page) || 1))
+      const pageSize = Math.max(1, Math.min(100, Number(input.pageSize) || 20))
+      const status = input.status === undefined || input.status === '' ? null : Number(input.status)
+      const result = await repository.listAccessLogs({ keyword: String(input.keyword || '').trim().slice(0, 100), method: String(input.method || '').trim().toUpperCase().slice(0, 10), status: Number.isInteger(status) ? status : null, page, pageSize })
+      return { rows: result.rows.map((row) => ({ id: Number(row.id), userCode: row.user_code || undefined, userName: row.user_name || undefined, method: row.method, path: row.path, statusCode: row.status_code, ipAddress: row.ip_address || undefined, userAgent: row.user_agent || undefined, referer: row.referer || undefined, durationMs: row.duration_ms || undefined, createdAt: row.created_at })), total: result.total, page, pageSize }
+    },
     async create(body, direction) {
       validateConfig(body, direction)
       const secretHash = await prepareClientSecret(body, direction)

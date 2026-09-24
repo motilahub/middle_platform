@@ -39,6 +39,17 @@ export function createMediaLibraryRouter(service, { asyncRoute, requirePermissio
     next()
   })
   router.get('/items', asyncRoute(async (req, res) => res.json(await service.list(String(req.query.type || 'movie'), req.query.q))))
+  router.get('/catalog', asyncRoute(async (req, res) => res.json(await service.searchCatalog({
+    type: req.query.type,
+    q: req.query.q,
+    genres: req.query.genres,
+    countries: req.query.countries,
+    year: req.query.year,
+    sort: req.query.sort,
+    page: req.query.page,
+    pageSize: req.query.pageSize,
+  }))))
+  router.get('/catalog/filters', asyncRoute(async (_req, res) => res.json(await service.catalogFilters())))
   router.get('/items/:id/poster', asyncRoute(async (req, res) => {
     const poster = await service.getPoster(req.params.id)
     res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400')

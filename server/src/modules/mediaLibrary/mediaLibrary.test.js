@@ -159,6 +159,23 @@ test('管理列表可以独立筛选动漫，手工资料校验标准字段', as
   await assert.rejects(service.createItem({ mediaType: 'movie', title: '影片', releaseDate: '2025-02-30' }), /上映日期无效/)
 })
 
+test('前台影视目录支持全局筛选、分页和最近上新排序', async () => {
+  const calls = []
+  const repository = {
+    searchCatalog: async (input) => { calls.push(input); return { items: [], total: 0 } },
+    catalogFilters: async () => ({ genres: ['喜剧'], countries: ['中国大陆'], years: [2026] }),
+  }
+  const service = createMediaLibraryService(repository, {}, createPlayableSearch())
+  const response = await service.searchCatalog({ type: 'anime', q: '测试', genres: ['喜剧', '喜剧'], countries: '中国大陆', year: '2026', sort: 'newest', page: '2', pageSize: '20' })
+  assert.deepEqual(calls[0], {
+    type: 'anime', keyword: '测试', genres: ['喜剧'], countries: ['中国大陆'], year: 2026,
+    sort: 'newest', limit: 20, offset: 20,
+  })
+  assert.equal(response.page, 2)
+  assert.equal(response.sort, 'newest')
+  assert.deepEqual(await service.catalogFilters(), { genres: ['喜剧'], countries: ['中国大陆'], years: [2026] })
+})
+
 test('规范化豆瓣榜单并提取电视剧集数', () => {
   const body = { subject_collection_items: [{
     id: '1292052', title: '示例影片', rank: 3, year: '2026', episodes_info: '更新至18集',

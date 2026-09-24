@@ -103,9 +103,8 @@ export default function MediaDetailPage() {
   }
 
   useEffect(() => {
-    const mediaId = Number(id)
-    if (!Number.isSafeInteger(mediaId)) { setLoading(false); return }
-    mediaLibraryApi.get(mediaId).then(setItem).catch((error) => message.error((error as Error).message)).finally(() => setLoading(false))
+    if (!id) { setLoading(false); return }
+    mediaLibraryApi.get(id).then(setItem).catch((error) => message.error((error as Error).message)).finally(() => setLoading(false))
   }, [id, message])
 
   const selectEpisode = (value: number) => {

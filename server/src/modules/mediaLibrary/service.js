@@ -15,6 +15,26 @@ function searchKeyword(value) {
   return String(value || '').trim().slice(0, 100)
 }
 
+function textFilters(value) {
+  const values = Array.isArray(value) ? value : String(value || '').split(',')
+  return [...new Set(values.map((item) => String(item).trim()).filter(Boolean))].slice(0, 50)
+}
+
+function catalogType(value) {
+  return ['movie', 'tv', 'anime'].includes(value) ? value : null
+}
+
+function catalogYear(value) {
+  if (value === undefined || value === null || value === '') return null
+  const year = Number(value)
+  return Number.isInteger(year) && year >= 1800 && year <= 2200 ? year : null
+}
+
+function catalogPage(value, fallback = 1) {
+  const page = Number(value)
+  return Number.isSafeInteger(page) && page > 0 ? Math.min(page, 100000) : fallback
+}
+
 function failure(message, status = 400) {
   return Object.assign(new Error(message), { status })
 }
@@ -103,7 +123,10 @@ export function createMediaLibraryService(repository, doubanProvider, playableSe
   let progressPromise
 
   const get = async (id) => {
-    const item = await repository.get(positiveId(id, '影片'))
+    const value = String(id)
+    const item = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+      ? await repository.get(value)
+      : repository.getById ? await repository.getById(positiveId(value, '影片')) : await repository.get(value)
     if (!item) throw Object.assign(new Error('影片不存在'), { status: 404 })
     return item
   }
@@ -139,6 +162,24 @@ export function createMediaLibraryService(repository, doubanProvider, playableSe
 
   return {
     list(type, query) { return repository.list(mediaType(type), searchKeyword(query)) },
+    async searchCatalog(input = {}) {
+      const page = catalogPage(input.page)
+      const pageSize = Math.min(50, Math.max(1, catalogPage(input.pageSize, 20)))
+      const type = catalogType(input.type)
+      const sort = input.sort === 'newest' ? 'newest' : 'default'
+      const result = await repository.searchCatalog({
+        type,
+        keyword: searchKeyword(input.keyword ?? input.q),
+        genres: textFilters(input.genres),
+        countries: textFilters(input.countries),
+        year: catalogYear(input.year),
+        sort,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+      })
+      return { ...result, page, pageSize, sort, type: type || 'all', keyword: searchKeyword(input.keyword ?? input.q) }
+    },
+    catalogFilters() { return repository.catalogFilters() },
     adminList(type, query) { return repository.list(type === 'all' || type === 'anime' ? null : mediaType(type), searchKeyword(query), true, type === 'anime' ? 'anime' : null) },
     get,
     refreshEpisodeProgress,
@@ -153,7 +194,8 @@ export function createMediaLibraryService(repository, doubanProvider, playableSe
 
     async updateItem(id, body) {
       const itemId = positiveId(id, '影片')
-      if (!await repository.get(itemId)) throw failure('影片不存在', 404)
+      const existing = repository.getById ? await repository.getById(itemId) : await repository.get(itemId)
+      if (!existing) throw failure('影片不存在', 404)
       return repository.updateItem(itemId, editableItem(body))
     },
 
@@ -231,7 +273,9 @@ export function createMediaLibraryService(repository, doubanProvider, playableSe
     importDouban(body) { return this.importResource({ ...body, source: 'douban' }) },
 
     async searchPlayable(body) {
-      const item = await get(body.mediaId)
+      const mediaId = positiveId(body.mediaId, '影片')
+      const item = repository.getById ? await repository.getById(mediaId) : await repository.get(mediaId)
+      if (!item) throw failure('影片不存在', 404)
       const episode = body.episode === undefined || body.episode === null ? null : positiveId(body.episode, '集数')
       if (item.mediaType === 'movie' && episode) throw Object.assign(new Error('电影不支持选择集数'), { status: 400 })
       if (item.mediaType === 'tv' && !episode) throw Object.assign(new Error('请选择集数'), { status: 400 })

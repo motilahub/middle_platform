@@ -1,7 +1,9 @@
 export type MediaType = 'movie' | 'tv'
+export type MediaCatalogType = 'all' | MediaType | 'anime'
 
 export interface MediaItem {
   id: number
+  publicId: string
   source: string
   externalId: string
   mediaType: MediaType
@@ -35,6 +37,23 @@ export interface MediaItem {
   addedManually: boolean
   detailSyncedAt?: string | null
   rankingSyncedAt?: string | null
+  createdAt?: string | null
+}
+
+export interface MediaCatalogResponse {
+  items: MediaItem[]
+  total: number
+  page: number
+  pageSize: number
+  type: MediaCatalogType
+  keyword: string
+  sort: 'default' | 'newest'
+}
+
+export interface MediaCatalogFilters {
+  genres: string[]
+  countries: string[]
+  years: number[]
 }
 
 export interface MediaItemInput {
