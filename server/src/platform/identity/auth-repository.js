@@ -46,15 +46,15 @@ export function createAuthRepository(pool) {
         return true
       } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
     },
-    event(action, outcome, subjectHash, userId, ip) { return pool.query('INSERT INTO auth_events(action,outcome,subject_hash,user_id,ip_address) VALUES($1,$2,$3,$4,$5)', [action, outcome, subjectHash, userId || null, ip || null]) },
+    event(action, outcome, subjectHash, userId, ip, loginIdentifier, userAgent) { return pool.query('INSERT INTO auth_events(action,outcome,subject_hash,user_id,ip_address,login_identifier,user_agent) VALUES($1,$2,$3,$4,$5,$6,$7)', [action, outcome, subjectHash, userId || null, ip || null, loginIdentifier || null, userAgent || null]) },
     async events({ page, pageSize, action, keyword }) {
       const params = []
       const filters = []
       if (action) { params.push(action); filters.push(`e.action=$${params.length}`) }
-      if (keyword) { params.push(`%${keyword.replace(/[\\%_]/g, '\\$&')}%`); filters.push(`(u.code ILIKE $${params.length} ESCAPE '\\' OR e.ip_address ILIKE $${params.length} ESCAPE '\\')`) }
+      if (keyword) { params.push(`%${keyword.replace(/[\\%_]/g, '\\$&')}%`); filters.push(`(u.code ILIKE $${params.length} ESCAPE '\\' OR e.login_identifier ILIKE $${params.length} ESCAPE '\\' OR e.ip_address ILIKE $${params.length} ESCAPE '\\')`) }
       const where = filters.length ? `WHERE ${filters.join(' AND ')}` : ''
       const count = await pool.query(`SELECT count(*)::integer AS total FROM auth_events e LEFT JOIN users u ON u.id=e.user_id ${where}`, params)
-      const rows = await pool.query(`SELECT e.id,e.action,e.outcome,e.ip_address,e.created_at,u.code AS user_code FROM auth_events e LEFT JOIN users u ON u.id=e.user_id ${where} ORDER BY e.id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, (page - 1) * pageSize])
+      const rows = await pool.query(`SELECT e.id,e.action,e.outcome,e.login_identifier,e.user_agent,e.ip_address,e.created_at,u.code AS user_code FROM auth_events e LEFT JOIN users u ON u.id=e.user_id ${where} ORDER BY e.id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, (page - 1) * pageSize])
       return { total: count.rows[0].total, rows: rows.rows }
     },
   }

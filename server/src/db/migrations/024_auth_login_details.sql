@@ -1,0 +1,2 @@
+ALTER TABLE auth_events ADD COLUMN IF NOT EXISTS login_identifier VARCHAR(255);
+ALTER TABLE auth_events ADD COLUMN IF NOT EXISTS user_agent VARCHAR(512);

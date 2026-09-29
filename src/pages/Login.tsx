@@ -53,7 +53,7 @@ export default function Login() {
   return <main className="login-page">{settings.workbenchNotice?.trim() && <SystemNotice content={settings.workbenchNotice} />}<div className="login-panel"><Card className="login-card" bordered={false}>
     <img className="brand-mark" src={settings.systemLogo || defaultLogo} alt={settings.systemTitle} /><Typography.Title level={2}>{settings.systemTitle}</Typography.Title><Typography.Text type="secondary">{settings.loginText}</Typography.Text>
     <Form form={form} layout="vertical" onFinish={submit} className="login-form">
-      <Form.Item name="code" rules={[{ required: true, message: '请输入账号' }]}><Input size="large" prefix={<UserOutlined />} placeholder="账号" /></Form.Item>
+      <Form.Item name="code" rules={[{ required: true, message: '请输入账号或邮箱' }]}><Input size="large" prefix={<UserOutlined />} placeholder="账号或邮箱" autoComplete="username" /></Form.Item>
       <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}><Input.Password size="large" prefix={<LockOutlined />} placeholder="密码" /></Form.Item>
       <Button type="primary" htmlType="submit" size="large" block>登录</Button>
     </Form>

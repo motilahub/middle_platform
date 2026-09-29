@@ -1,6 +1,6 @@
 export function createIdentityRepository(pool) {
   return {
-    findByCode(code) { return pool.query('SELECT * FROM users WHERE code=$1', [code]).then((result) => result.rows[0]) },
+    findByLogin(identifier) { return pool.query('SELECT * FROM users WHERE code=$1 OR lower(email)=lower($1) ORDER BY (code=$1) DESC LIMIT 1', [identifier]).then((result) => result.rows[0]) },
     findById(id) { return pool.query('SELECT * FROM users WHERE id=$1', [id]).then((result) => result.rows[0]) },
     list() { return pool.query('SELECT * FROM users ORDER BY id').then((result) => result.rows) },
     create(values) { return pool.query('INSERT INTO users(uuid,code,name,password_hash,role,avatar,avatar_original,avatar_thumbnail,email,phone) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *', values).then((result) => result.rows[0]) },

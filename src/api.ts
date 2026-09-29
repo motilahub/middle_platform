@@ -47,5 +47,5 @@ export const api = {
 }
 
 export interface AuthMailSettings { registrationEnabled: boolean; smtpHost: string; smtpPort: number; smtpSecure: boolean; smtpUser: string; senderEmail: string; hasPassword: boolean }
-export interface AuthEvent { id: number; action: string; outcome: string; ip_address: string | null; user_code: string | null; created_at: string }
+export interface AuthEvent { id: number; action: string; outcome: string; login_identifier: string | null; user_agent: string | null; ip_address: string | null; user_code: string | null; created_at: string }
 export interface AuthEventPage { rows: AuthEvent[]; total: number; page: number; pageSize: number }

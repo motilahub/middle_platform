@@ -14,8 +14,8 @@ export function createIdentityService(repository, mapUser, securityPolicy, permi
     return [email || null, phone || null]
   }
   return {
-    async authenticate(code, password) {
-      const row = await repository.findByCode(String(code || '').trim())
+    async authenticate(identifier, password) {
+      const row = await repository.findByLogin(String(identifier || '').trim())
       if (!await bcrypt.compare(String(password || ''), row?.password_hash || missingUserHash) || !row) throw Object.assign(new Error('账号或密码错误'), { status: 401 })
       return enrich(row)
     },

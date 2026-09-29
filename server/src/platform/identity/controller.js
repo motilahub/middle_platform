@@ -2,13 +2,14 @@ export function createIdentityController(service, sessionSecurity, authService) 
   return {
     async login(req, res) {
       const code = String(req.body?.code || '').trim()
-      await authService.limitLogin(code, req.ip)
+      const context = { ip: req.ip, userAgent: req.get('user-agent') }
+      await authService.limitLogin(code, context.ip, context.userAgent)
       try {
         const user = await service.authenticate(code, req.body?.password)
         await sessionSecurity.establishSession(req, res, user)
-        await authService.audit('login', 'success', code, { userId: user.id, ip: req.ip })
+        await authService.audit('login', 'success', code, { ...context, userId: user.id })
         res.json(user)
-      } catch (error) { await authService.audit('login', 'failed', code, { ip: req.ip }); throw error }
+      } catch (error) { await authService.audit('login', 'failed', code, context); throw error }
     },
     options: async (_req, res) => res.json(await authService.options()),
     sendCode: async (req, res) => { await authService.sendCode(req.body?.purpose, req.body?.email, { ip: req.ip }); res.status(202).json({ message: '如可发送，验证码将发至该邮箱' }) },

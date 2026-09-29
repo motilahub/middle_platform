@@ -10,11 +10,13 @@ const emailValue = (value) => {
 }
 const digest = (secret, value) => crypto.createHmac('sha256', secret).update(value).digest('hex')
 const mailReady = (row) => !!(row.smtp_host && row.smtp_user && row.smtp_password_encrypted && row.sender_email)
+const auditText = (value, limit) => String(value || '').trim().replace(/[\x00-\x1f\x7f]/g, '').slice(0, limit) || null
 
 export function createAuthService(repository, { pool, securityPolicy, cipher, secret, mailer = nodemailer }) {
   const hash = (value) => digest(secret, String(value || '').trim().toLowerCase())
   const audit = async (action, outcome, identifier, context = {}) => {
-    try { await repository.event(action, outcome, identifier ? hash(identifier) : null, context.userId, context.ip) }
+    try { await repository.event(action, outcome, identifier ? hash(identifier) : null, context.userId, context.ip,
+      action === 'login' ? auditText(identifier, 255) : null, action === 'login' ? auditText(context.userAgent, 512) : null) }
     catch (error) { console.error('认证日志写入失败', error) }
   }
   const limited = async (action, identifier, maximum, windowSeconds) => {
@@ -30,12 +32,12 @@ export function createAuthService(repository, { pool, securityPolicy, cipher, se
   }
   return {
     audit,
-    async limitLogin(code, ip) {
+    async limitLogin(code, ip, userAgent) {
       try {
         await limited('login_global', 'all', 2000, 900)
         await limited('login_ip', ip, 30, 900)
         await limited('login_account', code, 10, 900)
-      } catch (error) { await audit('login', 'limited', code, { ip }); throw error }
+      } catch (error) { await audit('login', 'limited', code, { ip, userAgent }); throw error }
     },
     async options() { const row = await repository.settings(); return { registrationEnabled: row.registration_enabled && mailReady(row) } },
     async settings() {
