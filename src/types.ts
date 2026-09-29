@@ -5,6 +5,9 @@ export interface User {
   uuid: string
   code: string
   name: string
+  email?: string
+  phone?: string
+  sessionVersion?: number
   avatar?: string | null
   avatarOriginal?: string | null
   password?: string
@@ -67,6 +70,7 @@ export interface SystemSettings {
   titleLogoOriginal?: string | null
   loginText: string
   footerRecord?: string
+  workbenchNotice?: string
   showWorkbenchHeader: boolean
   showAiChatHeader: boolean
   aiChatWelcome: string

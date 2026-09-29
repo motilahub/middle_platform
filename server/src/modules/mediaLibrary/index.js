@@ -28,8 +28,10 @@ function providerEnabled(optionValue, environmentName) {
   return value === undefined || !['0', 'false', 'off', 'no'].includes(String(value).trim().toLowerCase())
 }
 
-export function createMediaLibraryRouter(service, { asyncRoute, requirePermission, requireAnyPermission }) {
+export function createMediaLibraryRouter(service, { asyncRoute, requireAuth, requirePermission, requireAnyPermission }) {
+  if (typeof requireAuth !== 'function') throw new Error('影视库模块缺少登录校验中间件')
   const router = express.Router()
+  router.use(requireAuth)
   const mayRead = requireAnyPermission(['media.library.read', 'media.library.manage'])
   const mayCreate = requireAnyPermission(['media.library.create', 'media.library.manage'])
   const mayWrite = requireAnyPermission(['media.library.write', 'media.library.manage'])
@@ -52,7 +54,7 @@ export function createMediaLibraryRouter(service, { asyncRoute, requirePermissio
   router.get('/catalog/filters', asyncRoute(async (_req, res) => res.json(await service.catalogFilters())))
   router.get('/items/:id/poster', asyncRoute(async (req, res) => {
     const poster = await service.getPoster(req.params.id)
-    res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400')
+    res.setHeader('Cache-Control', 'private, max-age=604800, stale-while-revalidate=86400')
     res.type(poster.contentType).send(poster.body)
   }))
   router.get('/items/:id', asyncRoute(async (req, res) => res.json(await service.get(req.params.id))))
@@ -66,7 +68,7 @@ export function createMediaLibraryRouter(service, { asyncRoute, requirePermissio
   router.delete('/admin/items/:id', mayDelete, asyncRoute(async (req, res) => res.json(await service.deleteItems([req.params.id]))))
   router.get('/admin/poster', mayRead, asyncRoute(async (req, res) => {
     const poster = await service.getExternalPoster(req.query.url)
-    res.setHeader('Cache-Control', 'public, max-age=86400')
+    res.setHeader('Cache-Control', 'private, max-age=86400')
     res.type(poster.contentType).send(poster.body)
   }))
   router.post('/admin/douban-search', mayCreate, asyncRoute(async (req, res) => res.json(await service.searchDouban(req.body?.keyword))))
@@ -75,7 +77,7 @@ export function createMediaLibraryRouter(service, { asyncRoute, requirePermissio
   return router
 }
 
-export function createModule({ pool, asyncRoute, requirePermission, requireAnyPermission }, options = {}) {
+export function createModule({ pool, asyncRoute, requireAuth, requirePermission, requireAnyPermission }, options = {}) {
   const repository = createMediaLibraryRepository(pool)
   const provider = createDoubanProvider(options.doubanProvider)
   const playableProviders = [
@@ -91,7 +93,7 @@ export function createModule({ pool, asyncRoute, requirePermission, requireAnyPe
   const posterProxy = createPosterProxy(options.posterProxy)
   const tmdbProvider = createTmdbProvider(options.tmdbProvider)
   const service = createMediaLibraryService(repository, provider, playableSearch, { ...options, tmdbProvider, posterProxy })
-  const router = createMediaLibraryRouter(service, { asyncRoute, requirePermission, requireAnyPermission })
+  const router = createMediaLibraryRouter(service, { asyncRoute, requireAuth, requirePermission, requireAnyPermission })
   const configuredInterval = Number(options.progressSyncIntervalMs ?? process.env.MEDIA_LIBRARY_PROGRESS_SYNC_INTERVAL_MS ?? 21600000)
   const progressSyncIntervalMs = configuredInterval <= 0 ? 0 : Math.max(5 * 60 * 1000, configuredInterval)
   let progressTimer

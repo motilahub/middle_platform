@@ -1,12 +1,14 @@
 import { Form, Input, Button, Card, Typography, message } from 'antd'
 import { LockOutlined, UserOutlined } from '@ant-design/icons'
 import { useEffect, useRef } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import { ssoApi } from '../platform/sso/api'
 import { useSystemSettings } from '../system-settings'
 import { sanitizeHtml } from '../shared/sanitize-html'
+import SystemNotice from '../platform/layout/SystemNotice'
+import { useState } from 'react'
 
 function ssoRedirectPath(redirectUrl?: string) {
   if (!redirectUrl) return '/'
@@ -22,6 +24,8 @@ export default function Login() {
   const { settings, defaultLogo } = useSystemSettings()
   const [form] = Form.useForm<{ code: string; password: string }>()
   const handledSsoAttempt = useRef<string | null>(null)
+  const [registrationEnabled, setRegistrationEnabled] = useState(false)
+  useEffect(() => { void api.authOptions().then((options) => setRegistrationEnabled(options.registrationEnabled)).catch(() => {}) }, [])
   useEffect(() => {
     const ticket = new URLSearchParams(location.search).get('ticket')
     const ssoCode = new URLSearchParams(location.search).get('ssoCode')
@@ -46,12 +50,13 @@ export default function Login() {
     try { await api.login(values.code, values.password); await refresh(); const from = (location.state as { from?: string } | null)?.from || '/'; navigate(from, { replace: true }) }
     catch (error) { message.error((error as Error).message) }
   }
-  return <main className="login-page"><div className="login-panel"><Card className="login-card" bordered={false}>
+  return <main className="login-page">{settings.workbenchNotice?.trim() && <SystemNotice content={settings.workbenchNotice} />}<div className="login-panel"><Card className="login-card" bordered={false}>
     <img className="brand-mark" src={settings.systemLogo || defaultLogo} alt={settings.systemTitle} /><Typography.Title level={2}>{settings.systemTitle}</Typography.Title><Typography.Text type="secondary">{settings.loginText}</Typography.Text>
     <Form form={form} layout="vertical" onFinish={submit} className="login-form">
-      <Form.Item name="code" rules={[{ required: true, message: '请输入账号' }]}><Input size="large" prefix={<UserOutlined />} placeholder="账号" /></Form.Item>
+      <Form.Item name="code" rules={[{ required: true, message: '请输入账号或邮箱' }]}><Input size="large" prefix={<UserOutlined />} placeholder="账号或邮箱" autoComplete="username" /></Form.Item>
       <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}><Input.Password size="large" prefix={<LockOutlined />} placeholder="密码" /></Form.Item>
       <Button type="primary" htmlType="submit" size="large" block>登录</Button>
     </Form>
+    <div className="auth-links">{registrationEnabled && <Link to="/register">注册账号</Link>}<Link to="/forgot-password">忘记密码？</Link></div>
   </Card></div>{settings.footerRecord && <footer className="system-footer" dangerouslySetInnerHTML={{ __html: sanitizeHtml(settings.footerRecord) }} />}</main>
 }

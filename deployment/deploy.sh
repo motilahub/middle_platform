@@ -39,6 +39,7 @@ if [ ! -f "$ENV_FILE" ]; then
 
   db_password=$(openssl rand -hex 24)
   session_secret=$(openssl rand -hex 48)
+  initial_admin_password=$(openssl rand -hex 16)
   printf '%s\n' \
     "IMAGE_TAG=__IMAGE_TAG__" \
     "WEB_PORT=8080" \
@@ -47,6 +48,8 @@ if [ ! -f "$ENV_FILE" ]; then
     "POSTGRES_USER=oa_workbench" \
     "POSTGRES_PASSWORD=$db_password" \
     "SESSION_SECRET=$session_secret" \
+    "INITIAL_ADMIN_PASSWORD=$initial_admin_password" \
+    "AUTH_MAIL_ENCRYPTION_KEY=$session_secret" \
     "MODEL_PROVIDER_ENCRYPTION_KEY=$session_secret" \
     "COOKIE_SECURE=false" > "$ENV_FILE"
   chmod 600 "$ENV_FILE"

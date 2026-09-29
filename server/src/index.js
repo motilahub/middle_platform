@@ -74,7 +74,7 @@ app.use(normalizeVersionedApi)
 
 const ssoModule = createSsoModule({ pool, mapUser, establishSession: sessionSecurity.establishSession, permissionService })
 const healthModule = createHealthModule(pool)
-const identityModule = createIdentityModule({ pool, uploadRoot, mapUser, securityPolicy, sessionSecurity, permissionService })
+const identityModule = createIdentityModule({ pool, uploadRoot, mapUser, securityPolicy, sessionSecurity, permissionService, encryptionKey: process.env.AUTH_MAIL_ENCRYPTION_KEY || sessionSecret })
 const settingsModule = createSettingsModule({ pool, uploadRoot, mapSystemSettings, mapSecuritySettings, securityPolicy })
 const workbenchModule = createWorkbenchModule({ pool, uploadRoot, mapApp, ssoService: ssoModule.service })
 const modelProviderModule = createModelProviderModule({ pool, encryptionKey: process.env.MODEL_PROVIDER_ENCRYPTION_KEY || sessionSecret })
@@ -103,6 +103,17 @@ const businessModules = await loadBusinessModules({
   dependencies,
 })
 registerPublicPlatformModules(app, dependencies)
+app.use('/api', asyncRoute(async (req, res, next) => {
+  if (['/api/auth/login', '/api/auth/logout', '/api/auth/send-code', '/api/auth/register', '/api/auth/reset-password'].includes(req.path)) return next()
+  if (!req.session.user) return next()
+  const version = await identityModule.authService.sessionVersion(req.session.user.id)
+  if (version === undefined || version !== (req.session.user.sessionVersion ?? 0)) {
+    await new Promise((resolve) => req.session.destroy(() => resolve()))
+    res.clearCookie('connect.sid', sessionCookie)
+    return res.status(401).json({ message: '登录已失效，请重新登录' })
+  }
+  next()
+}))
 app.use('/api', sessionSecurity.requireCsrf)
 app.use('/api', securityPolicy.rateLimiter)
 registerProtectedPlatformModules(app, dependencies)
@@ -110,12 +121,12 @@ registerBusinessModules(app, dependencies, businessModules)
 await startModules(businessModules, dependencies)
 
 app.use((error, _req, res, _next) => {
+  if (error.code === '23505') return res.status(409).json({ message: '账号或邮箱已存在' })
   console.error(error)
-  if (error.code === '23505') return res.status(409).json({ message: '编码已存在' })
   res.status(error.status || 500).json({ message: error.message || '服务器错误' })
 })
 
-const server = app.listen(port, '0.0.0.0', () => console.log(`API listening on ${port}`))
+const server = app.listen(port, process.env.HOST || '0.0.0.0', () => console.log(`API listening on ${port}`))
 const shutdown = async () => {
   await stopModules(businessModules, dependencies)
   await new Promise((resolve) => server.close(resolve))

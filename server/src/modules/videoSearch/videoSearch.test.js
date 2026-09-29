@@ -1,21 +1,39 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import express from 'express'
+import { requireAuth } from '../../middleware/auth.js'
 import { createModule, manifest } from './index.js'
 import { createPanSouProvider, isAllowedPanLink, parsePanSouDataLine } from './pansouProvider.js'
 import { createResolveToken, readResolveToken } from './token.js'
 
-test('天影查通过业务模块契约注册公开接口并迁移入口', async () => {
+test('天影查通过业务模块契约注册需登录的接口并迁移入口', async () => {
   const uses = []
   let migrationSql = ''
-  const module = createModule({ sessionSecret: 'test-secret' })
+  const module = createModule({ sessionSecret: 'test-secret', requireAuth })
   module.register({ use: (...args) => uses.push(args) })
   await module.migrate({ pool: { query: async (sql) => { migrationSql = sql } } })
   assert.equal(manifest.key, 'video-search')
   assert.equal(uses[0][0], '/api/video-search')
   assert.equal(uses[0].length, 2)
-  assert.notEqual(uses[0][1], 'require-auth')
   assert.match(migrationSql, /dashboard_apps/)
   assert.match(migrationSql, /天影查/)
+})
+
+test('天影查搜索和解析拒绝匿名请求', async (t) => {
+  const app = express()
+  app.use(express.json())
+  app.use((req, _res, next) => { req.session = { user: req.get('x-test-user') ? { id: 1 } : null }; next() })
+  createModule({ sessionSecret: 'test-secret', requireAuth }).register(app)
+  const server = app.listen(0, '127.0.0.1')
+  await new Promise((resolve) => server.once('listening', resolve))
+  t.after(() => new Promise((resolve) => server.close(resolve)))
+  const base = `http://127.0.0.1:${server.address().port}/api/video-search`
+  for (const path of ['/search', '/resolve']) {
+    const response = await fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
+    assert.equal(response.status, 401)
+  }
+  const signedIn = await fetch(`${base}/search`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-test-user': '1' }, body: '{}' })
+  assert.equal(signedIn.status, 400)
 })
 
 test('解析天查 SSE 数据行', () => {

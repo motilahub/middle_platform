@@ -1,11 +1,26 @@
-export function createIdentityController(service, sessionSecurity) {
+export function createIdentityController(service, sessionSecurity, authService) {
   return {
     async login(req, res) {
-      const user = await service.authenticate(req.body.code, req.body.password)
-      await sessionSecurity.establishSession(req, res, user)
-      res.json(user)
+      const code = String(req.body?.code || '').trim()
+      const context = { ip: req.ip, userAgent: req.get('user-agent') }
+      await authService.limitLogin(code, context.ip, context.userAgent)
+      try {
+        const user = await service.authenticate(code, req.body?.password)
+        await sessionSecurity.establishSession(req, res, user)
+        await authService.audit('login', 'success', code, { ...context, userId: user.id })
+        res.json(user)
+      } catch (error) { await authService.audit('login', 'failed', code, context); throw error }
     },
-    logout(req, res) {
+    options: async (_req, res) => res.json(await authService.options()),
+    sendCode: async (req, res) => { await authService.sendCode(req.body?.purpose, req.body?.email, { ip: req.ip }); res.status(202).json({ message: '如可发送，验证码将发至该邮箱' }) },
+    register: async (req, res) => { await authService.register(req.body || {}, { ip: req.ip }); res.status(201).json({ message: '注册成功，请登录' }) },
+    resetPassword: async (req, res) => { await authService.reset(req.body || {}, { ip: req.ip }); res.status(204).end() },
+    mailSettings: async (_req, res) => res.json(await authService.settings()),
+    updateMailSettings: async (req, res) => res.json(await authService.updateSettings(req.body, { ip: req.ip, userId: req.session.user.id })),
+    testMail: async (req, res) => { await authService.testMail(req.body.email, { ip: req.ip, userId: req.session.user.id }); res.status(204).end() },
+    authEvents: async (req, res) => res.json(await authService.events(req.query)),
+    async logout(req, res) {
+      await authService.audit('logout', 'success', req.session.user?.code, { userId: req.session.user?.id, ip: req.ip })
       return req.session.destroy((error) => {
         if (error) return res.status(500).json({ message: '退出登录失败' })
         res.clearCookie('connect.sid', req.app.locals.sessionCookie)

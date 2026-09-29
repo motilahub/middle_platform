@@ -1,5 +1,5 @@
 export function registerWorkbenchRoutes(app, controller, { asyncRoute, requireAuth, requirePermission }) {
-  app.get('/api/workbench/apps', asyncRoute(controller.visible))
+  app.get('/api/workbench/apps', requireAuth, asyncRoute(controller.visible))
   app.get('/api/me/apps', requireAuth, asyncRoute(controller.visible))
   app.get('/api/admin/app-categories', requirePermission('platform.app.read'), asyncRoute(controller.categories))
   app.post('/api/admin/app-categories', requirePermission('platform.app.create'), asyncRoute(controller.createCategory))

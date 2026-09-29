@@ -13,9 +13,11 @@ function validateKeyword(value) {
 
 const route = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next)
 
-export function createVideoSearchRouter({ tokenSecret, providerOptions } = {}) {
+export function createVideoSearchRouter({ tokenSecret, providerOptions, requireAuth } = {}) {
   if (!tokenSecret) throw new Error('天影查模块缺少令牌签名密钥')
+  if (typeof requireAuth !== 'function') throw new Error('天影查模块缺少登录校验中间件')
   const router = express.Router()
+  router.use(requireAuth)
   const providers = new Map([['tiancha', createPanSouProvider(providerOptions)]])
 
   router.use((_req, res, next) => {
@@ -72,8 +74,8 @@ export const manifest = {
   enabledByDefault: true,
 }
 
-export function createModule({ sessionSecret }) {
-  const router = createVideoSearchRouter({ tokenSecret: sessionSecret })
+export function createModule({ sessionSecret, requireAuth }) {
+  const router = createVideoSearchRouter({ tokenSecret: sessionSecret, requireAuth })
   return {
     manifest,
     async migrate({ pool }) {

@@ -6,6 +6,8 @@ import { DashboardApp } from '../types'
 import { ssoApi } from '../platform/sso/api'
 import { useAuth } from '../auth'
 import { SystemFooter, SystemHeader } from '../platform/layout/SystemChrome'
+import { useSystemSettings } from '../system-settings'
+import SystemNotice from '../platform/layout/SystemNotice'
 
 type AppGroup = { key: string; id?: number; name: string; priority?: number; apps: DashboardApp[] }
 
@@ -25,6 +27,7 @@ export default function Workbench() {
   const [openingAppId, setOpeningAppId] = useState<number | null>(null)
   const { message } = App.useApp()
   const { user } = useAuth()
+  const { settings } = useSystemSettings()
   const navigate = useNavigate()
   useEffect(() => { api.visibleApps().then(setApps).catch((error) => message.error((error as Error).message)) }, [message, user?.id])
   const open = (url: string, mode: DashboardApp['openMode']) => {
@@ -46,7 +49,7 @@ export default function Workbench() {
   }
   const groups = apps ? groupApps(apps) : []
   const renderApp = (dashboardApp: DashboardApp) => <button className="app-tile" key={dashboardApp.id} disabled={openingAppId === dashboardApp.id} onClick={() => { if (dashboardApp.outboundSsoConfigId && !user) { navigate('/login', { state: { from: '/' } }); return } void openApp(dashboardApp) }}><div className="app-icon">{openingAppId === dashboardApp.id ? <Spin /> : dashboardApp.imgThumbnail || dashboardApp.img ? <img src={dashboardApp.imgThumbnail || dashboardApp.img} alt="" /> : <span>{dashboardApp.name.slice(0, 1)}</span>}</div><div className="app-name">{dashboardApp.name}</div></button>
-  return <div className="workbench"><SystemHeader /><section className="app-grid">
+  return <div className="workbench"><SystemHeader />{settings.workbenchNotice?.trim() && <SystemNotice content={settings.workbenchNotice} />}<section className="app-grid">
     {apps === null ? <Spin size="large" /> : groups.length ? groups.map((group) => <section className="workbench-category" key={group.key}><h2 className="workbench-category-title">{group.name}</h2><div className="workbench-category-grid">{group.apps.map(renderApp)}</div></section>) : <div className="workbench-empty"><Empty description="暂无可访问应用" /></div>}
   </section><SystemFooter /></div>
 }

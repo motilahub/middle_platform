@@ -1,13 +1,22 @@
 import bcrypt from 'bcryptjs'
 import crypto from 'node:crypto'
 
+const missingUserHash = bcrypt.hashSync('invalid-account-placeholder', 12)
+
 export function createIdentityService(repository, mapUser, securityPolicy, permissionService, imageStore) {
   const enrich = (user) => permissionService.enrich(mapUser(user))
   const persistAvatar = imageStore?.persistAvatar || (async (value) => { const image = String(value || '').trim().slice(0, 1000) || null; return { thumbnail: image, original: image } })
+  const contact = (body, current) => {
+    const email = String(body.email ?? current?.email ?? '').trim().toLowerCase()
+    const phone = String(body.phone ?? current?.phone ?? '').trim()
+    if (email && (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw Object.assign(new Error('邮箱格式不正确'), { status: 400 })
+    if (phone && !/^\+?[0-9 -]{6,32}$/.test(phone)) throw Object.assign(new Error('手机号格式不正确'), { status: 400 })
+    return [email || null, phone || null]
+  }
   return {
-    async authenticate(code, password) {
-      const row = await repository.findByCode(String(code || '').trim())
-      if (!row || !await bcrypt.compare(String(password || ''), row.password_hash)) throw Object.assign(new Error('账号或密码错误'), { status: 401 })
+    async authenticate(identifier, password) {
+      const row = await repository.findByLogin(String(identifier || '').trim())
+      if (!await bcrypt.compare(String(password || ''), row?.password_hash || missingUserHash) || !row) throw Object.assign(new Error('账号或密码错误'), { status: 401 })
       return enrich(row)
     },
     async list() { return Promise.all((await repository.list()).map(enrich)) },
@@ -25,7 +34,7 @@ export function createIdentityService(repository, mapUser, securityPolicy, permi
     async create(body) {
       const hash = await bcrypt.hash(securityPolicy.validatePassword(body.password), 12)
       const avatarAssets = body.avatar ? await persistAvatar(body.avatar, null, null, body.avatarOriginal) : { thumbnail: null, original: null }
-      const user = await repository.create([crypto.randomUUID(), body.code, body.name, hash, body.role, avatarAssets.thumbnail, avatarAssets.original, avatarAssets.thumbnail])
+      const user = await repository.create([crypto.randomUUID(), body.code, body.name, hash, body.role, avatarAssets.thumbnail, avatarAssets.original, avatarAssets.thumbnail, ...contact(body)])
       const groupIds = body.groupIds || await repository.defaultGroupIds(body.role)
       await permissionService.setUserGroups(user.id, groupIds)
       return enrich(user)
@@ -36,7 +45,7 @@ export function createIdentityService(repository, mapUser, securityPolicy, permi
       const role = current.code === 'admin' ? 'super_admin' : body.role
       const hash = body.password ? await bcrypt.hash(securityPolicy.validatePassword(body.password), 12) : null
       const avatarAssets = body.avatar === undefined ? { thumbnail: current.avatar_thumbnail || current.avatar || null, original: current.avatar_original || current.avatar || null } : await persistAvatar(body.avatar, current.avatar_thumbnail || current.avatar, current.avatar_original, body.avatarOriginal)
-      await repository.update(id, [body.name, role, hash, avatarAssets.thumbnail, avatarAssets.original, avatarAssets.thumbnail])
+      await repository.update(id, [body.name, role, hash, avatarAssets.thumbnail, avatarAssets.original, avatarAssets.thumbnail, ...contact(body, current)])
       if (body.groupIds) await permissionService.setUserGroups(id, body.groupIds)
       return enrich(await repository.findById(id))
     },
