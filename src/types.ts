@@ -67,6 +67,7 @@ export interface SystemSettings {
   titleLogoOriginal?: string | null
   loginText: string
   footerRecord?: string
+  workbenchNotice?: string
   showWorkbenchHeader: boolean
   showAiChatHeader: boolean
   aiChatWelcome: string

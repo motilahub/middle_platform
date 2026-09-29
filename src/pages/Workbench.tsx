@@ -1,11 +1,13 @@
 import { App, Empty, Spin } from 'antd'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { DashboardApp } from '../types'
 import { ssoApi } from '../platform/sso/api'
 import { useAuth } from '../auth'
 import { SystemFooter, SystemHeader } from '../platform/layout/SystemChrome'
+import { useSystemSettings } from '../system-settings'
+import { sanitizeHtml } from '../shared/sanitize-html'
 
 type AppGroup = { key: string; id?: number; name: string; priority?: number; apps: DashboardApp[] }
 
@@ -20,11 +22,29 @@ function groupApps(apps: DashboardApp[]): AppGroup[] {
   return [...groups.values()].map((group) => ({ ...group, apps: group.apps.sort((a, b) => a.priority - b.priority || a.id - b.id) })).sort((a, b) => (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER) || (a.id ?? Number.MAX_SAFE_INTEGER) - (b.id ?? Number.MAX_SAFE_INTEGER))
 }
 
+function WorkbenchNotice({ content }: { content: string }) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [duration, setDuration] = useState(20)
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track) return
+    const observer = new ResizeObserver(() => setDuration(Math.max(16, Math.round(track.scrollWidth / 65))))
+    observer.observe(track)
+    return () => observer.disconnect()
+  }, [content])
+  return <div className="workbench-notice" role="region" aria-label="系统通知">
+    <div className="workbench-notice-track" ref={trackRef} style={{ animationDuration: `${duration}s` }}>
+      <div className="workbench-notice-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }} />
+    </div>
+  </div>
+}
+
 export default function Workbench() {
   const [apps, setApps] = useState<DashboardApp[] | null>(null)
   const [openingAppId, setOpeningAppId] = useState<number | null>(null)
   const { message } = App.useApp()
   const { user } = useAuth()
+  const { settings } = useSystemSettings()
   const navigate = useNavigate()
   useEffect(() => { api.visibleApps().then(setApps).catch((error) => message.error((error as Error).message)) }, [message, user?.id])
   const open = (url: string, mode: DashboardApp['openMode']) => {
@@ -46,7 +66,7 @@ export default function Workbench() {
   }
   const groups = apps ? groupApps(apps) : []
   const renderApp = (dashboardApp: DashboardApp) => <button className="app-tile" key={dashboardApp.id} disabled={openingAppId === dashboardApp.id} onClick={() => { if (dashboardApp.outboundSsoConfigId && !user) { navigate('/login', { state: { from: '/' } }); return } void openApp(dashboardApp) }}><div className="app-icon">{openingAppId === dashboardApp.id ? <Spin /> : dashboardApp.imgThumbnail || dashboardApp.img ? <img src={dashboardApp.imgThumbnail || dashboardApp.img} alt="" /> : <span>{dashboardApp.name.slice(0, 1)}</span>}</div><div className="app-name">{dashboardApp.name}</div></button>
-  return <div className="workbench"><SystemHeader /><section className="app-grid">
+  return <div className="workbench"><SystemHeader />{settings.workbenchNotice?.trim() && <WorkbenchNotice content={settings.workbenchNotice} />}<section className="app-grid">
     {apps === null ? <Spin size="large" /> : groups.length ? groups.map((group) => <section className="workbench-category" key={group.key}><h2 className="workbench-category-title">{group.name}</h2><div className="workbench-category-grid">{group.apps.map(renderApp)}</div></section>) : <div className="workbench-empty"><Empty description="暂无可访问应用" /></div>}
   </section><SystemFooter /></div>
 }

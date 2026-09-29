@@ -62,6 +62,8 @@ export default function SystemSecurityConfig() {
       <Typography.Title level={5}>登录与页脚</Typography.Title>
       <Form.Item name="loginText" label="登录界面文字"><Input maxLength={255} placeholder="控制台" /></Form.Item>
       <Form.Item name="footerRecord" label="页脚备案信息" extra={'支持 HTML，例如：<a href="https://beian.miit.gov.cn">京ICP备XXXXXXXX号</a>'}><Input.TextArea rows={3} maxLength={5000} placeholder={'例如：<a href="https://beian.miit.gov.cn">京ICP备XXXXXXXX号</a>'} /></Form.Item>
+      <Typography.Title level={5}>工作台通知</Typography.Title>
+      <Form.Item name="workbenchNotice" label="跑马灯消息" extra="留空则不显示；支持安全 HTML 标签，如加粗和链接"><Input.TextArea rows={3} maxLength={5000} placeholder={'例如：系统将于今晚维护，<a href="https://example.com">查看详情</a>'} /></Form.Item>
       <Typography.Title level={5}>控制台管理</Typography.Title>
       <Form.Item name="showWorkbenchHeader" label="工作台 Header" valuePropName="checked" extra="开启后，工作台显示控制台、当前用户和退出入口"><Checkbox>显示 Header</Checkbox></Form.Item>
       <Form.Item name="showAiChatHeader" label="CHAT Header" valuePropName="checked" extra="开启后，AI Chat 页面显示右侧顶部 Header"><Checkbox>显示 Header</Checkbox></Form.Item>

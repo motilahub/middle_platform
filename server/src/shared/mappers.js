@@ -30,6 +30,7 @@ export function mapSystemSettings(row) {
     titleLogoOriginal: row.title_logo_original || row.title_logo || undefined,
     loginText: row.login_text,
     footerRecord: row.footer_record || undefined,
+    workbenchNotice: row.workbench_notice || undefined,
     showWorkbenchHeader: !!row.show_workbench_header,
     showAiChatHeader: row.show_ai_chat_header !== false,
     aiChatWelcome: row.ai_chat_welcome || '你好，我是通用助手，有什么可以帮你？',
