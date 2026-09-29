@@ -145,8 +145,6 @@ export default function VideoPlayer({
   const orientationLockedRef = useRef(false)
   const screenLockedRef = useRef(false)
   const pointerGestureRef = useRef<PointerGesture>()
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout>>()
-  const longPressRateRef = useRef<number>()
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const suppressVideoClickRef = useRef(false)
   const [activeSource, setActiveSource] = useState('')
@@ -317,7 +315,6 @@ export default function VideoPlayer({
   useEffect(() => () => {
     if (videoClickTimerRef.current) clearTimeout(videoClickTimerRef.current)
     if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current)
-    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
     if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
     const connection = presentationRef.current
     if (connection) {
@@ -577,21 +574,9 @@ export default function VideoPlayer({
     player.muted = value === 0
   }
 
-  const clearLongPressTimer = () => {
-    if (!longPressTimerRef.current) return
-    clearTimeout(longPressTimerRef.current)
-    longPressTimerRef.current = undefined
-  }
-
   const finishPointerGesture = (event: ReactPointerEvent<HTMLVideoElement>) => {
     const gesture = pointerGestureRef.current
     if (!gesture || gesture.pointerId !== event.pointerId) return
-    clearLongPressTimer()
-    if (longPressRateRef.current !== undefined) {
-      if (videoRef.current) videoRef.current.playbackRate = longPressRateRef.current
-      longPressRateRef.current = undefined
-      suppressVideoClickRef.current = true
-    }
     if (gesture.moved) suppressVideoClickRef.current = true
     pointerGestureRef.current = undefined
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
@@ -613,25 +598,15 @@ export default function VideoPlayer({
       moved: false,
     }
     event.currentTarget.setPointerCapture(event.pointerId)
-    clearLongPressTimer()
-    longPressTimerRef.current = setTimeout(() => {
-      const gesture = pointerGestureRef.current
-      const player = videoRef.current
-      if (!gesture || gesture.moved || !player || player.paused) return
-      longPressTimerRef.current = undefined
-      longPressRateRef.current = player.playbackRate
-      player.playbackRate = 2
-    }, 450)
   }
 
   const handleVideoPointerMove = (event: ReactPointerEvent<HTMLVideoElement>) => {
     const gesture = pointerGestureRef.current
-    if (!gesture || gesture.pointerId !== event.pointerId || longPressRateRef.current !== undefined) return
+    if (!gesture || gesture.pointerId !== event.pointerId) return
     const deltaX = event.clientX - gesture.startX
     const deltaY = event.clientY - gesture.startY
     if (!gesture.moved && Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 10) return
     gesture.moved = true
-    clearLongPressTimer()
     if (Math.abs(deltaY) < Math.abs(deltaX) || !gesture.adjustment) return
     event.preventDefault()
     const bounds = event.currentTarget.getBoundingClientRect()
