@@ -9,7 +9,9 @@ export async function initDatabase() {
   await runMigrations(pool)
   const exists = await pool.query('SELECT id FROM users WHERE code=$1', ['admin'])
   if (!exists.rowCount) {
-    const hash = await bcrypt.hash('admin', 12)
+    const initialPassword = process.env.INITIAL_ADMIN_PASSWORD || (process.env.NODE_ENV === 'production' ? '' : 'admin')
+    if (initialPassword.length < 12 && process.env.NODE_ENV === 'production') throw new Error('首次部署须配置至少 12 位的 INITIAL_ADMIN_PASSWORD')
+    const hash = await bcrypt.hash(initialPassword, 12)
     await pool.query("INSERT INTO users(id,uuid,code,name,password_hash,role) VALUES(1,'00000000-0000-4000-8000-000000000001','admin','超级管理员',$1,'super_admin')", [hash])
     await pool.query("SELECT setval(pg_get_serial_sequence('users','id'), GREATEST((SELECT MAX(id) FROM users), 1))")
   }

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --test src/platform/sso/ticket.test.js src/platform/sso/access-logs.test.js src/platform/identity/permissions.test.js src/platform/workbench/service.test.js src/platform/settings/service.test.js src/bootstrap/module-contract.test.js src/bootstrap/module-loader.test.js src/middleware/security.test.js src/platform/model-providers/service.test.js src/modules/ai-assistant/service.test.js src/modules/ai-assistant/attachments.test.js src/shared/secret-crypto.test.js src/modules/videoSearch/videoSearch.test.js src/modules/mediaLibrary/mediaLibrary.test.js"
+    "test": "node --test src/platform/sso/ticket.test.js src/platform/sso/access-logs.test.js src/platform/identity/permissions.test.js src/platform/identity/auth-service.test.js src/platform/workbench/service.test.js src/platform/settings/service.test.js src/bootstrap/module-contract.test.js src/bootstrap/module-loader.test.js src/middleware/security.test.js src/platform/model-providers/service.test.js src/modules/ai-assistant/service.test.js src/modules/ai-assistant/attachments.test.js src/shared/secret-crypto.test.js src/modules/videoSearch/videoSearch.test.js src/modules/mediaLibrary/mediaLibrary.test.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -13,6 +13,7 @@
     "express": "^5.1.0",
     "express-session": "^1.18.2",
     "node-fetch": "^3.3.2",
+    "nodemailer": "^10.0.12",
     "pg": "^8.16.3",
     "proxy-agent": "^6.5.0",
     "sharp": "^0.34.3"

@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import express from 'express'
+import { requireAuth } from '../../middleware/auth.js'
+import { asyncRoute } from '../../middleware/http.js'
+import { createMediaLibraryRouter } from './index.js'
 import { createDoubanProvider, episodeCountFrom, episodeProgressFrom, normalizeDoubanDetail, normalizeDoubanItems, normalizeDoubanSearch, normalizeDoubanWebSearch, parseDoubanSearchPage } from './doubanProvider.js'
 import { createBaofengProvider, createFeifanProvider, createXinlangProvider, createYzy1080Provider, createZy360Provider, normalizeMacCmsResults } from './macCmsProvider.js'
 import { createNiuniuProvider, normalizeNiuniuResults } from './niuniuProvider.js'
@@ -9,6 +13,30 @@ import { createFixedProxyAgent } from './proxyAgent.js'
 import { compareResourceSearchResults, createMediaLibraryService } from './service.js'
 import { createTmdbProvider, normalizeTmdbDetail, normalizeTmdbSearch } from './tmdbProvider.js'
 import { createMediaLibraryRepository } from './repository.js'
+
+test('影视库目录、详情、海报和播放查询拒绝匿名请求', async (t) => {
+  const app = express()
+  app.use(express.json())
+  app.use((req, _res, next) => { req.session = { user: req.get('x-test-user') ? { id: 1 } : null }; next() })
+  const service = {
+    searchCatalog: async () => ({ items: [], total: 0 }),
+    catalogFilters: async () => ({}),
+    get: async () => ({ id: 1 }),
+    getPoster: async () => { throw new Error('匿名用户不得读取海报') },
+    searchPlayable: async () => ({}),
+  }
+  const pass = () => (_req, _res, next) => next()
+  app.use('/api/media-library', createMediaLibraryRouter(service, { asyncRoute, requireAuth, requirePermission: pass, requireAnyPermission: pass }))
+  const server = app.listen(0, '127.0.0.1')
+  await new Promise((resolve) => server.once('listening', resolve))
+  t.after(() => new Promise((resolve) => server.close(resolve)))
+  const base = `http://127.0.0.1:${server.address().port}/api/media-library`
+  for (const path of ['/items', '/catalog', '/catalog/filters', '/items/example', '/items/example/poster']) {
+    assert.equal((await fetch(`${base}${path}`)).status, 401, path)
+  }
+  assert.equal((await fetch(`${base}/playable-search`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status, 401)
+  assert.equal((await fetch(`${base}/catalog/filters`, { headers: { 'x-test-user': '1' } })).status, 200)
+})
 
 test('TMDB 搜索只返回影视并保留同名不同年份和动漫形态', () => {
   const results = normalizeTmdbSearch({ results: [

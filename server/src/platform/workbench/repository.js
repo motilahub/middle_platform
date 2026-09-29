@@ -10,9 +10,9 @@ export function createWorkbenchRepository(pool) {
   return {
     listVisible(userId) {
       return pool.query(`${appSelect}
-        HAVING a.enabled=TRUE AND (
+        HAVING a.enabled=TRUE AND $1::bigint IS NOT NULL AND (
           a.visibility='public'
-          OR ($1::bigint IS NOT NULL AND $1=ANY(array_agg(au.user_id)))
+          OR EXISTS (SELECT 1 FROM users u WHERE u.id=$1 AND u.role IN ('admin','super_admin'))
         )
         ORDER BY COALESCE(c.priority, 2147483647), c.id, a.priority, a.id`, [userId || null]).then((result) => result.rows)
     },
@@ -42,6 +42,7 @@ export function createWorkbenchRepository(pool) {
       } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
     },
     async saveUsers(client, appId, userIds) {
+      if (userIds === undefined) return
       await client.query('DELETE FROM dashboard_app_users WHERE app_id=$1', [appId])
       for (const userId of userIds || []) await client.query('INSERT INTO dashboard_app_users(app_id,user_id) VALUES($1,$2)', [appId, userId])
     },

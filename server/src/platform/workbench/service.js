@@ -17,7 +17,7 @@ export function createWorkbenchService(repository, mapApp, imageStore, ssoServic
     async create(body) {
       const ssoConfigId = await ssoService.resolveOutboundConfigId(body.outboundSsoConfigId)
       const image = await imageStore.persist(body.img, body.imgFileName)
-      return repository.create([body.code, body.name, body.priority, categoryId(body.categoryId), body.url, body.enabled, image.original, image.thumbnail, image.filename, ssoConfigId, visibility(body.visibility), openMode(body.openMode)], body.userIds)
+      return repository.create([body.code, body.name, body.priority, categoryId(body.categoryId), body.url, body.enabled, image.original, image.thumbnail, image.filename, ssoConfigId, visibility(body.visibility), openMode(body.openMode)])
     },
     async update(id, body) {
       const old = await repository.find(id)
@@ -27,7 +27,7 @@ export function createWorkbenchService(repository, mapApp, imageStore, ssoServic
       let image = { original: old.image_original, thumbnail: old.image_thumbnail, filename: old.image_filename }
       if (!body.img) { await imageStore.remove(old); image = { original: null, thumbnail: null, filename: null } }
       else if (body.img.startsWith('data:image/')) image = await imageStore.persist(body.img, body.imgFileName, old)
-      return repository.update(id, [body.name, body.priority, selectedCategoryId, body.url, body.enabled, image.original, image.thumbnail, image.filename, ssoConfigId, visibility(body.visibility), openMode(body.openMode)], body.userIds)
+      return repository.update(id, [body.name, body.priority, selectedCategoryId, body.url, body.enabled, image.original, image.thumbnail, image.filename, ssoConfigId, visibility(body.visibility), openMode(body.openMode)])
     },
     setEnabled(id, enabled) { return repository.setEnabled(id, enabled) },
     reorder(ids) { return repository.reorder(ids) },

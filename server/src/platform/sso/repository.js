@@ -35,7 +35,7 @@ export function createSsoRepository(pool) {
         JOIN sso_configs s ON s.id=app.outbound_sso_config_id
         WHERE app.id=$1 AND app.enabled=TRUE AND s.direction='outbound' AND s.protocol='ticket' AND s.enabled=TRUE
           AND (app.visibility='public'
-            OR EXISTS (SELECT 1 FROM dashboard_app_users WHERE app_id=app.id AND user_id=$2))`, [appId, userId])).rows[0]
+            OR EXISTS (SELECT 1 FROM users WHERE id=$2 AND role IN ('admin','super_admin')))`, [appId, userId])).rows[0]
     },
     async issueTicket(ticketHash, configId, userId, expiresAt) {
       await pool.query('INSERT INTO outbound_sso_tickets(ticket_hash,sso_config_id,user_id,expires_at) VALUES($1,$2,$3,$4)', [ticketHash, configId, userId, expiresAt])

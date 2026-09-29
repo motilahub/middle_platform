@@ -5,6 +5,9 @@ export interface User {
   uuid: string
   code: string
   name: string
+  email?: string
+  phone?: string
+  sessionVersion?: number
   avatar?: string | null
   avatarOriginal?: string | null
   password?: string
