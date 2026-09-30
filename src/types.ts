@@ -73,6 +73,7 @@ export interface SystemSettings {
   workbenchNotice?: string
   showWorkbenchHeader: boolean
   showAiChatHeader: boolean
+  aiChatEnabled: boolean
   aiChatWelcome: string
   aiChatFirstPromptCount: number
   aiChatMaxRounds: number

@@ -9,6 +9,7 @@ const defaults: SystemSettings = {
   loginText: '控制台',
   showWorkbenchHeader: true,
   showAiChatHeader: true,
+  aiChatEnabled: true,
   aiChatWelcome: '你好，我是通用助手，有什么可以帮你？',
   aiChatFirstPromptCount: 3,
   aiChatMaxRounds: 20,

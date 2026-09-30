@@ -33,6 +33,7 @@ export function mapSystemSettings(row) {
     workbenchNotice: row.workbench_notice || undefined,
     showWorkbenchHeader: !!row.show_workbench_header,
     showAiChatHeader: row.show_ai_chat_header !== false,
+    aiChatEnabled: row.ai_chat_enabled !== false,
     aiChatWelcome: row.ai_chat_welcome || '你好，我是通用助手，有什么可以帮你？',
     aiChatFirstPromptCount: Number(row.ai_chat_first_prompt_count ?? 3),
     aiChatMaxRounds: Number(row.ai_chat_max_rounds ?? 20),

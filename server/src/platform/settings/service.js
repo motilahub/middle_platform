@@ -33,7 +33,8 @@ export function createSettingsService(repository, imageStore, mappers, securityP
       const robotIcon = body.aiChatRobotIcon === undefined ? { display: current.ai_chat_robot_icon, original: current.ai_chat_robot_icon_original || current.ai_chat_robot_icon } : await imageStore.persistIcon(body.aiChatRobotIcon, current.ai_chat_robot_icon, current.ai_chat_robot_icon_original)
       const theme = ['light', 'dark', 'nature'].includes(body.aiChatTheme) ? body.aiChatTheme : current.ai_chat_theme
       const effects = typeof body.aiChatEffects === 'boolean' ? body.aiChatEffects : current.ai_chat_effects
-      return mappers.mapSystemSettings(await repository.updateAiChat([welcome, firstPromptCount, maxRounds, followupCount, robotIcon.display, robotIcon.original, theme, effects]))
+      const enabled = body.aiChatEnabled === undefined ? current.ai_chat_enabled : boolean(body.aiChatEnabled, 'AI Chat 有效状态')
+      return mappers.mapSystemSettings(await repository.updateAiChat([welcome, firstPromptCount, maxRounds, followupCount, robotIcon.display, robotIcon.original, theme, effects, enabled]))
     },
     async security() { return mappers.mapSecuritySettings(await repository.readSecurity()) },
     async updateSecurity(body) {
