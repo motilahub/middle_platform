@@ -95,7 +95,10 @@ export default function MediaLibraryPage() {
       {loading ? <div className="media-library-loading"><Spin size="large" /></div> : items.length ? <><section ref={listRef} className="media-library-grid" aria-label="影视搜索结果">
         {items.map((item) => <button type="button" className="media-library-item" key={item.id} onClick={() => navigate(`/media-library/${item.publicId}`, { state: { libraryReturnTo: `${location.pathname}${location.search}` } })}>
           <div className="media-library-poster"><MediaPoster item={item} />{item.ranking && sort !== 'newest' && <b>#{item.ranking}</b>}</div>
-          <div className="media-library-item-body"><h2>{item.title}</h2><div className="media-library-meta"><span><StarFilled /> {(item.rating || 0).toFixed(1)}</span>{item.year && <span>{item.year}</span>}{item.contentCategory === 'anime' ? <Tag bordered={false}>动漫</Tag> : <Tag bordered={false}>{item.mediaType === 'movie' ? '电影' : '电视剧'}</Tag>}{item.mediaType === 'tv' && episodeLabel(item) && <Tag bordered={false}>{episodeLabel(item)}</Tag>}</div></div>
+          <div className="media-library-item-body"><h2>{item.title}</h2><div className="media-library-meta">
+            <span className="media-library-meta-main"><span><StarFilled /> {(item.rating || 0).toFixed(1)}</span>{item.year && <span>{item.year}</span>}</span>
+            <span className="media-library-meta-tags">{item.contentCategory === 'anime' ? <Tag bordered={false}>动漫</Tag> : <Tag bordered={false}>{item.mediaType === 'movie' ? '电影' : '电视剧'}</Tag>}{item.mediaType === 'tv' && episodeLabel(item) && <Tag bordered={false}>{episodeLabel(item)}</Tag>}</span>
+          </div></div>
         </button>)}
       </section><Pagination className="media-library-pagination" current={page} pageSize={PAGE_SIZE} total={total} showSizeChanger={false} hideOnSinglePage onChange={(nextPage) => { updateFilters({ page: String(nextPage) }, false); requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} /></> : <Empty className="media-library-empty" image={Empty.PRESENTED_IMAGE_SIMPLE} description={query ? `未找到“${query}”` : '暂无影视数据'} />}
     </main>

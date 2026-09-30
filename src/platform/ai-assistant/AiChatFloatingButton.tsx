@@ -7,7 +7,7 @@ export default function AiChatFloatingButton() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { settings, defaultLogo } = useSystemSettings()
-  if (!user || location.pathname === '/ai-chat' || location.pathname === '/login') return null
+  if (!user || !settings.aiChatEnabled || location.pathname === '/ai-chat' || location.pathname === '/login') return null
   const icon = settings.aiChatRobotIcon || settings.systemLogo || defaultLogo
   return <button type="button" className="ai-chat-fab" onClick={() => navigate('/ai-chat')} aria-label="打开 AI 对话" title="打开 AI 对话"><img src={icon} alt="" /><span>AI</span></button>
 }
