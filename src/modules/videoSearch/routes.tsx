@@ -7,7 +7,7 @@ import VideoSearchPage from './VideoSearchPage'
 registerBusinessModule({
   key: 'video-search',
   routes: [
-    <Route key="video-search-opening" path="/video-search/opening" element={<RouteGuard><VideoOpeningPage /></RouteGuard>} />,
+    <Route key="video-search-opening" path="/video-search/opening" element={<VideoOpeningPage />} />,
     <Route key="video-search" path="/video-search" element={<RouteGuard><VideoSearchPage /></RouteGuard>} />,
   ],
 })
