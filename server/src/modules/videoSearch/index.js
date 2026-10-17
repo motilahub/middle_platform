@@ -17,7 +17,6 @@ export function createVideoSearchRouter({ tokenSecret, providerOptions, requireA
   if (!tokenSecret) throw new Error('天影查模块缺少令牌签名密钥')
   if (typeof requireAuth !== 'function') throw new Error('天影查模块缺少登录校验中间件')
   const router = express.Router()
-  router.use(requireAuth)
   const providers = new Map([['tiancha', createPanSouProvider(providerOptions)]])
 
   router.use((_req, res, next) => {
@@ -35,10 +34,10 @@ export function createVideoSearchRouter({ tokenSecret, providerOptions, requireA
       const output = await provider.search(keyword)
       return {
         source: { id: sourceId, name: provider.name, status: output.status, count: output.results.length, message: output.message },
-        results: output.results.map(({ rawToken, ...item }) => ({
+        results: output.results.map(({ rawToken, stoken, ...item }) => ({
           ...item,
           linkMode: 'resolve',
-          resolveToken: createResolveToken({ provider: sourceId, rawToken, title: item.title }, tokenSecret),
+          resolveToken: createResolveToken({ provider: sourceId, rawToken, title: item.title, stoken }, tokenSecret),
         })),
       }
     }))
@@ -59,7 +58,7 @@ export function createVideoSearchRouter({ tokenSecret, providerOptions, requireA
     const data = readResolveToken(req.body.resolveToken, tokenSecret)
     const provider = providers.get(data.provider)
     if (!provider) return res.status(400).json({ message: '搜索源已不可用' })
-    const url = await provider.resolve(data.rawToken, data.title)
+    const url = await provider.resolve(data.rawToken, data.title, data.stoken)
     res.json({ url })
   }))
 

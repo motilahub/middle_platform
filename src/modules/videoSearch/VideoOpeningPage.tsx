@@ -1,5 +1,5 @@
 import { Button, Typography } from 'antd'
-import { CloseCircleOutlined, CloseOutlined, LinkOutlined } from '@ant-design/icons'
+import { CloseCircleOutlined, LinkOutlined } from '@ant-design/icons'
 import { useLocation } from 'react-router-dom'
 
 export default function VideoOpeningPage() {
@@ -15,7 +15,7 @@ export default function VideoOpeningPage() {
       </div>
       <Typography.Title level={3}>{failed ? '链接获取失败' : '正在获取网盘链接'}</Typography.Title>
       <Typography.Text type="secondary">{failed ? message : '解析完成后将自动跳转'}</Typography.Text>
-      {failed && <Button icon={<CloseOutlined />} onClick={() => window.close()}>关闭页面</Button>}
+      {failed && <Button onClick={() => window.close()}>关闭页面</Button>}
     </section>
   </main>
 }

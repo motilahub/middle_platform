@@ -1,4 +1,5 @@
-import { App, Button, Drawer, Empty, Input, List, Segmented, Spin, Tag, Typography } from 'antd'
+import { App, Button, Drawer, Empty, Input, Segmented, Spin, Table, Tag, Typography } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { SearchOutlined } from '@ant-design/icons'
 import { useEffect, useMemo, useState } from 'react'
 import { mediaLibraryApi } from './api'
@@ -11,11 +12,13 @@ const STORAGE_META: Record<PanResource['storageType'], { label: string; color: s
   quark: { label: '夸克', color: 'green' },
   uc: { label: 'UC', color: 'orange' },
   xunlei: { label: '迅雷', color: 'purple' },
+  guangya: { label: '光鸭', color: 'cyan' },
 }
 
-export default function ResourceDrawer({ item, open, onClose }: {
+export default function ResourceDrawer({ item, open, darkMode, onClose }: {
   item: MediaItem
   open: boolean
+  darkMode: boolean
   onClose: () => void
 }) {
   const { message } = App.useApp()
@@ -25,18 +28,22 @@ export default function ResourceDrawer({ item, open, onClose }: {
   const [storageFilter, setStorageFilter] = useState<StorageFilter>('all')
   const [resultKeyword, setResultKeyword] = useState('')
   const [page, setPage] = useState(1)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   useEffect(() => {
     if (!open) return
+    let active = true
     setResults(undefined)
     setStorageFilter('all')
     setResultKeyword('')
     setPage(1)
+    setSelectedIds([])
     setLoading(true)
     mediaLibraryApi.searchPan(item.title)
-      .then((output) => setResults(output.results))
-      .catch((error) => { setResults([]); message.error((error as Error).message) })
-      .finally(() => setLoading(false))
+      .then((output) => { if (active) setResults(output.results) })
+      .catch((error) => { if (active) { setResults([]); message.error((error as Error).message) } })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
   }, [item.title, message, open])
 
   const openPan = async (resource: PanResource) => {
@@ -76,22 +83,35 @@ export default function ResourceDrawer({ item, open, onClose }: {
     { label: `全部 ${results?.length || 0}`, value: 'all' },
     ...Object.entries(STORAGE_META).map(([value, meta]) => ({ label: `${meta.label} ${storageCounts[value] || 0}`, value })),
   ], [results, storageCounts])
+  const copySelectedNames = async () => {
+    try {
+      await navigator.clipboard.writeText((results || []).filter((resource) => selectedIds.includes(resource.id)).map((resource) => resource.title).join('\n'))
+      message.success('已复制所选资源名称')
+    } catch {
+      message.error('复制失败，请检查浏览器剪贴板权限')
+    }
+  }
+  const columns: ColumnsType<PanResource> = [
+    { title: '序号', width: 54, render: (_value, _row, index) => (page - 1) * 10 + index + 1 },
+    { title: '资源名称', dataIndex: 'title', ellipsis: true, render: (title: string, resource) => <Button className="video-result-link" type="link" title={title} disabled={Boolean(resolvingId && resolvingId !== resource.id)} onClick={() => void openPan(resource)}><span>{title}</span></Button> },
+    { title: '网盘', dataIndex: 'storageType', width: 74, render: (value: PanResource['storageType']) => <Tag color={STORAGE_META[value].color}>{STORAGE_META[value].label}</Tag> },
+    { title: '来源线路', dataIndex: 'sourceLine', width: 100, ellipsis: true, render: (value: string | undefined, resource) => value || resource.providerName },
+    { title: '操作', width: 64, fixed: 'right', render: (_value, resource) => <Button type="link" loading={resolvingId === resource.id} disabled={Boolean(resolvingId && resolvingId !== resource.id)} onClick={() => void openPan(resource)}>打开</Button> },
+  ]
 
-  return <Drawer title={item.title} width={620} open={open} onClose={onClose} destroyOnClose>
+  return <Drawer rootClassName={`media-resource-drawer${darkMode ? ' is-dark' : ''}`} title={item.title} width={620} open={open} onClose={onClose} destroyOnClose>
     <Typography.Text type="secondary">选择网盘资源</Typography.Text>
     {loading
       ? <div className="media-resource-loading"><Spin /></div>
       : results?.length
         ? <>
           <div className="media-resource-tools">
-            <Input allowClear prefix={<SearchOutlined />} value={resultKeyword} placeholder="搜索资源名称、搜索源或线路" onChange={(event) => { setResultKeyword(event.target.value); setPage(1) }} />
-            <Segmented value={storageFilter} options={storageOptions} onChange={(value) => { setStorageFilter(value as StorageFilter); setPage(1) }} />
+            <Input allowClear prefix={<SearchOutlined />} value={resultKeyword} placeholder="搜索资源名称、搜索源或线路" onChange={(event) => { setResultKeyword(event.target.value); setPage(1); setSelectedIds([]) }} />
+            <Segmented value={storageFilter} options={storageOptions} onChange={(value) => { setStorageFilter(value as StorageFilter); setPage(1); setSelectedIds([]) }} />
+            <div className="media-resource-batch"><Button disabled={!selectedIds.length} onClick={() => void copySelectedNames()}>复制所选名称</Button><Typography.Text type="secondary">已选 {selectedIds.length} 条</Typography.Text></div>
           </div>
           {filteredResults.length
-            ? <List className="media-resource-list" dataSource={filteredResults} pagination={{ current: page, pageSize: 10, hideOnSinglePage: true, onChange: setPage }} renderItem={(resource) => <List.Item actions={[<Button key="open" type="link" loading={resolvingId === resource.id} disabled={Boolean(resolvingId && resolvingId !== resource.id)} onClick={() => void openPan(resource)}>打开</Button>]}>
-              <List.Item.Meta title={resource.title} description={<><Tag color={STORAGE_META[resource.storageType].color}>{STORAGE_META[resource.storageType].label}</Tag>{resource.sourceLine || resource.providerName}</>} />
-            </List.Item>}
-            />
+            ? <Table<PanResource> className="media-resource-table" size="small" rowKey="id" columns={columns} dataSource={filteredResults} rowSelection={{ selectedRowKeys: selectedIds, preserveSelectedRowKeys: true, onChange: (keys) => setSelectedIds(keys as string[]) }} scroll={{ x: 530 }} pagination={{ current: page, pageSize: 10, onChange: setPage, showSizeChanger: false, showTotal: (total) => `共 ${total} 条` }} />
             : <Empty className="media-resource-empty" image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有符合筛选条件的资源" />}
         </>
         : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无网盘资源" />}

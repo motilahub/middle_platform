@@ -271,7 +271,7 @@ export default function MediaDetailPage() {
 
     </main>
     <SystemFooter />
-    <ResourceDrawer item={item} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+    <ResourceDrawer item={item} open={drawerOpen} darkMode={darkMode} onClose={() => setDrawerOpen(false)} />
     <Modal className="media-floating-player" open={floatingOpen} footer={null} closable={false} maskClosable={false} width={960} centered onCancel={closeFloatingPlayer} destroyOnClose styles={{ mask: { backgroundColor: '#000' } }}>
       <div className="media-floating-player-toolbar"><Button type="text" icon={<CloseOutlined />} aria-label="关闭播放器" onClick={closeFloatingPlayer} /></div>
       {floatingOpen && player}

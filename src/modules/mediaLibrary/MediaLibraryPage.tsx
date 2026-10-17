@@ -29,7 +29,8 @@ export default function MediaLibraryPage() {
   const genres = useMemo(() => csv(genresParam), [genresParam])
   const countries = useMemo(() => csv(countriesParam), [countriesParam])
   const year = searchParams.get('year') ? Number(searchParams.get('year')) : undefined
-  const sort = searchParams.get('sort') === 'newest' ? 'newest' : 'default'
+  // 新访客默认查看最近入库内容；通过地址栏显式保留 default 时才显示全部榜单排序。
+  const sort = searchParams.get('sort') === 'default' ? 'default' : 'newest'
   const requestedPage = Number(searchParams.get('page'))
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1
   const [items, setItems] = useState<MediaItem[]>([])
@@ -86,8 +87,8 @@ export default function MediaLibraryPage() {
       <div className="media-catalog-search"><Input.Search allowClear size="large" value={searchText} prefix={<SearchOutlined />} placeholder="搜索电影、电视剧、动漫名称" enterButton="搜索" onChange={(event) => setSearchText(event.target.value)} onSearch={(value) => updateFilters({ q: value.trim() })} /></div>
       <div className="media-catalog-toolbar">
         <div className="media-catalog-tabs" role="tablist">
-          {[['all', '全部'], ['movie', '电影'], ['tv', '电视剧'], ['anime', '动漫']].map(([value, label]) => <Tag.CheckableTag key={value} checked={sort !== 'newest' && type === value} onChange={() => updateFilters({ type: value === 'all' ? undefined : value, sort: undefined })}>{label}</Tag.CheckableTag>)}
-          <Tag.CheckableTag checked={sort === 'newest'} onChange={() => updateFilters({ sort: sort === 'newest' ? undefined : 'newest' })}>最近上新</Tag.CheckableTag>
+          {[['all', '全部'], ['movie', '电影'], ['tv', '电视剧'], ['anime', '动漫']].map(([value, label]) => <Tag.CheckableTag key={value} checked={sort === 'default' && type === value} onChange={() => updateFilters({ type: value === 'all' ? undefined : value, sort: 'default' })}>{label}</Tag.CheckableTag>)}
+          <Tag.CheckableTag checked={sort === 'newest'} onChange={() => updateFilters({ sort: sort === 'newest' ? 'default' : 'newest' })}>最近上新</Tag.CheckableTag>
         </div>
         <Button onClick={() => setFilterOpen((open) => !open)}>筛选{activeFilterCount ? `（${activeFilterCount}）` : ''} {filterOpen ? <UpOutlined /> : <DownOutlined />}</Button>
       </div>

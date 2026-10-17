@@ -205,7 +205,7 @@ export function createMediaLibraryService(repository, doubanProvider, playableSe
     },
 
     async getPoster(id) {
-      const item = await get(id)
+      const item = await get(id) || (repository.getById ? await repository.getById(positiveId(id, '影片')) : null)
       if (!item.posterUrl) throw Object.assign(new Error('影片暂无海报'), { status: 404 })
       return options.posterProxy.fetch(item.posterUrl)
     },

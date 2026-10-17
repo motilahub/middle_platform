@@ -45,7 +45,7 @@ export default function Login() {
     })()
   }, [location.search, logout, navigate, refresh])
   const isSsoAttempt = Boolean(new URLSearchParams(location.search).get('ticket'))
-  useEffect(() => { if (user && !isSsoAttempt) navigate('/', { replace: true }) }, [user, isSsoAttempt, navigate])
+  useEffect(() => { if (user && !isSsoAttempt) navigate('/workbench', { replace: true }) }, [user, isSsoAttempt, navigate])
   const submit = async (values: { code: string; password: string }) => {
     try { await api.login(values.code, values.password); await refresh(); const from = (location.state as { from?: string } | null)?.from || '/'; navigate(from, { replace: true }) }
     catch (error) { message.error((error as Error).message) }
