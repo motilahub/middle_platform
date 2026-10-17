@@ -12,7 +12,7 @@ export default function MediaPoster({ item, alt = '', loading = 'lazy' }: {
 
   if (!item.posterUrl || failed) return <span aria-hidden="true">{item.title.slice(0, 1)}</span>
   return <img
-    src={`/api/media-library/items/${item.id}/poster`}
+    src={`/api/media-library/items/${encodeURIComponent(item.publicId)}/poster`}
     alt={alt}
     loading={loading}
     onError={() => setFailed(true)}

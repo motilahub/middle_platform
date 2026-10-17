@@ -13,7 +13,7 @@ function validatePosterUrl(value) {
   let url
   try { url = new URL(value) } catch { throw posterError('海报地址无效') }
   if (url.protocol !== 'https:' || url.username || url.password ||
-    !(DOUBAN_IMAGE_HOST.test(url.hostname) || (url.hostname === 'image.tmdb.org' && /^\/t\/p\/w500\/[\w-]+\.(?:jpg|jpeg|png|webp)$/i.test(url.pathname)))) {
+    !(DOUBAN_IMAGE_HOST.test(url.hostname) || (url.hostname === 'image.tmdb.org' && /^\/t\/p\/(?:[a-z0-9]+|original)\/[\w-]+\.(?:jpg|jpeg|png|webp)$/i.test(url.pathname)))) {
     throw posterError('海报来源不受支持')
   }
   return url

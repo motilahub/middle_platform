@@ -18,7 +18,7 @@ export default function AuthAccount({ mode }: { mode: 'register' | 'reset' }) {
   const [enabled, setEnabled] = useState<boolean | null>(null)
   useEffect(() => { if (mode === 'register') void api.authOptions().then(({ registrationEnabled }) => setEnabled(registrationEnabled)).catch(() => setEnabled(false)) }, [mode])
   useEffect(() => { if (!seconds) return; const timer = window.setTimeout(() => setSeconds(seconds - 1), 1000); return () => window.clearTimeout(timer) }, [seconds])
-  if (user) return <Navigate to="/" replace />
+  if (user) return <Navigate to="/workbench" replace />
   if (mode === 'register' && enabled === false) return <Navigate to="/login" replace />
   const send = async () => {
     try {

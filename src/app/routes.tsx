@@ -31,7 +31,7 @@ function ConfigIndexRedirect() {
   if (can('platform.model_provider.read')) return <Navigate to="model-providers" replace />
   if (can('platform.sso.read')) return <Navigate to="sso/inbound" replace />
   if (canAny(['media.library.read', 'media.library.manage'])) return <Navigate to="media-library" replace />
-  return <Navigate to="/" replace />
+  return <Navigate to="/workbench" replace />
 }
 
 export default function AppRoutes() {
@@ -43,7 +43,7 @@ export default function AppRoutes() {
     <Route path="/login" element={<Login />} />
     <Route path="/register" element={<AuthAccount mode="register" />} />
     <Route path="/forgot-password" element={<AuthAccount mode="reset" />} />
-    <Route path="/" element={<Guard><Workbench /></Guard>} />
+    <Route path="/workbench" element={<Guard><Workbench /></Guard>} />
     <Route path="/ai-chat" element={<Guard><AIChat /></Guard>} />
     <Route path="/config" element={<Guard requiredAnyPermissions={['platform.app.read', 'platform.user.read', 'platform.settings.read', 'platform.sso.read', 'platform.model_provider.read', 'platform.ai_agent.read', 'media.library.read', 'media.library.manage']}><ConfigLayout onLogout={handleLogout} /></Guard>}>
       <Route index element={<ConfigIndexRedirect />} />

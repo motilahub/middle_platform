@@ -18,7 +18,7 @@ export function SystemHeader({ actions }: { actions?: ReactNode } = {}) {
   }
 
   return <header className="workbench-header">
-    <button type="button" className="workbench-header-brand" onClick={() => navigate('/')} aria-label="返回工作台">
+    <button type="button" className="workbench-header-brand" onClick={() => navigate('/workbench')} aria-label="返回工作台">
       <img className="brand-mark small" src={settings.systemLogo || defaultLogo} alt={settings.systemTitle} />
       <strong>{settings.systemTitle}</strong>
     </button>

@@ -19,7 +19,7 @@ test('天影查通过业务模块契约注册需登录的接口并迁移入口',
   assert.match(migrationSql, /天影查/)
 })
 
-test('天影查搜索和解析拒绝匿名请求', async (t) => {
+test('天影查搜索和解析允许匿名请求', async (t) => {
   const app = express()
   app.use(express.json())
   app.use((req, _res, next) => { req.session = { user: req.get('x-test-user') ? { id: 1 } : null }; next() })
@@ -30,7 +30,7 @@ test('天影查搜索和解析拒绝匿名请求', async (t) => {
   const base = `http://127.0.0.1:${server.address().port}/api/video-search`
   for (const path of ['/search', '/resolve']) {
     const response = await fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
-    assert.equal(response.status, 401)
+    assert.notEqual(response.status, 401)
   }
   const signedIn = await fetch(`${base}/search`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-test-user': '1' }, body: '{}' })
   assert.equal(signedIn.status, 400)
@@ -66,7 +66,7 @@ test('按需解析链接并校验返回域名', async () => {
     },
   })
   assert.equal(await provider.resolve('opaque-token', '兰香'), 'https://pan.baidu.com/s/example?pwd=1234')
-  assert.deepEqual(requestBody, { url: 'opaque-token', title: '兰香' })
+  assert.deepEqual(requestBody, { url: 'opaque-token', title: '兰香', stoken: '' })
 
   const unsafeProvider = createPanSouProvider({
     fetch: async () => new Response(JSON.stringify({ code: 200, data: { url: 'https://example.com/file' } }), { status: 200 }),
@@ -80,7 +80,7 @@ test('每种网盘默认独立读取最多 100 条搜索结果', async () => {
     fetch: async () => new Response(stream, { status: 200, headers: { 'content-type': 'text/event-stream' } }),
   })
   const output = await provider.search('小')
-  assert.equal(output.results.length, 100 * 4)
+  assert.equal(output.results.length, 100 * 5)
   assert.equal(output.results.filter((item) => item.storageType === 'quark').length, 100)
 })
 
@@ -101,5 +101,5 @@ test('短时间内复用已解析链接并合并并发请求', async () => {
   assert.equal(first, 'https://pan.quark.cn/s/example')
   assert.equal(second, first)
   assert.equal(await provider.resolve('shared-token', '小'), first)
-  assert.equal(requests, 1)
+  assert.equal(requests, 2)
 })

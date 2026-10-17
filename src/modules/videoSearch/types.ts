@@ -1,4 +1,4 @@
-export type VideoStorageType = 'baidu' | 'quark' | 'uc' | 'xunlei'
+export type VideoStorageType = 'baidu' | 'quark' | 'uc' | 'xunlei' | 'guangya'
 export type VideoSearchSourceState = 'success' | 'partial' | 'failed'
 
 export interface VideoSearchResult {

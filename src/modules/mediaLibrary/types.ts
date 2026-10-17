@@ -118,7 +118,7 @@ export interface PanResource {
   id: string
   title: string
   providerName: string
-  storageType: 'baidu' | 'quark' | 'uc' | 'xunlei'
+  storageType: 'baidu' | 'quark' | 'uc' | 'xunlei' | 'guangya'
   sourceLine?: string
   url?: string
   resolveToken?: string
