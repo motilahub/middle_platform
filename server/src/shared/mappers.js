@@ -31,6 +31,7 @@ export function mapSystemSettings(row) {
     loginText: row.login_text,
     footerRecord: row.footer_record || undefined,
     workbenchNotice: row.workbench_notice || undefined,
+    panSearchUrl: row.pan_search_url || 'http://localhost:8888/api/search',
     showWorkbenchHeader: !!row.show_workbench_header,
     showAiChatHeader: row.show_ai_chat_header !== false,
     aiChatEnabled: row.ai_chat_enabled !== false,

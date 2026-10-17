@@ -9,8 +9,18 @@ export function createSettingsService(repository, imageStore, mappers, securityP
     if (typeof value !== 'boolean') throw Object.assign(new Error(`${label}必须为布尔值`), { status: 400 })
     return value
   }
+  const panSearchUrl = (value, fallback) => {
+    const candidate = text(value, fallback || 'http://localhost:8888/api/search', 500)
+    let url
+    try { url = new URL(candidate) } catch { throw Object.assign(new Error('网盘搜索源地址必须是有效 URL'), { status: 400 }) }
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || !url.pathname.endsWith('/api/search')) {
+      throw Object.assign(new Error('网盘搜索源地址必须为不带查询参数的 HTTP(S) /api/search 地址'), { status: 400 })
+    }
+    return url.toString().replace(/\/$/, '')
+  }
   return {
     async system() { return mappers.mapSystemSettings(await repository.readSystem()) },
+    async panSearchUrl() { return repository.readPanSearchUrl() || 'http://localhost:8888/api/search' },
     async updateSystem(body) {
       const current = await repository.readSystem()
       const systemTitle = text(body.systemTitle, current.system_title, 120)
@@ -18,7 +28,7 @@ export function createSettingsService(repository, imageStore, mappers, securityP
       if (!systemTitle || !browserTitle) throw Object.assign(new Error('系统标题和浏览器标题不能为空'), { status: 400 })
       const systemLogo = body.systemLogo === undefined ? { display: current.system_logo, original: current.system_logo_original || current.system_logo } : await imageStore.persist(body.systemLogo, current.system_logo, current.system_logo_original)
       const titleLogo = body.titleLogo === undefined ? { display: current.title_logo, original: current.title_logo_original || current.title_logo } : await imageStore.persist(body.titleLogo, current.title_logo, current.title_logo_original)
-      const result = await repository.updateSystem([systemTitle, browserTitle, systemLogo.display, systemLogo.original, titleLogo.display, titleLogo.original, text(body.loginText, current.login_text, 255), text(body.footerRecord, current.footer_record || '', 5000) || null, typeof body.showWorkbenchHeader === 'boolean' ? body.showWorkbenchHeader : current.show_workbench_header, typeof body.showAiChatHeader === 'boolean' ? body.showAiChatHeader : current.show_ai_chat_header, text(body.workbenchNotice, current.workbench_notice || '', 5000) || null])
+      const result = await repository.updateSystem([systemTitle, browserTitle, systemLogo.display, systemLogo.original, titleLogo.display, titleLogo.original, text(body.loginText, current.login_text, 255), text(body.footerRecord, current.footer_record || '', 5000) || null, typeof body.showWorkbenchHeader === 'boolean' ? body.showWorkbenchHeader : current.show_workbench_header, typeof body.showAiChatHeader === 'boolean' ? body.showAiChatHeader : current.show_ai_chat_header, text(body.workbenchNotice, current.workbench_notice || '', 5000) || null, panSearchUrl(body.panSearchUrl, current.pan_search_url)])
       return mappers.mapSystemSettings(result)
     },
     async aiChat() { return mappers.mapSystemSettings(await repository.readSystem()) },

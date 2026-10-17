@@ -5,7 +5,7 @@ import { createSettingsRepository } from './repository.js'
 import { mapSystemSettings } from '../../shared/mappers.js'
 
 test('工作台通知保存、清空及旧客户端更新时保留原值', async () => {
-  const row = { system_title: 'Motila', browser_title: 'Motila', login_text: '控制台', workbench_notice: null }
+  const row = { system_title: 'Motila', browser_title: 'Motila', login_text: '控制台', workbench_notice: null, pan_search_url: 'http://localhost:8888/api/search' }
   const repository = {
     async readSystem() { return row },
     async updateSystem(values) { row.workbench_notice = values[10]; return row },
@@ -17,6 +17,9 @@ test('工作台通知保存、清空及旧客户端更新时保留原值', async
   assert.equal((await service.updateSystem({ workbenchNotice: ' <strong>停机通知</strong> ' })).workbenchNotice, '<strong>停机通知</strong>')
   assert.equal((await service.updateSystem({ systemTitle: '新标题' })).workbenchNotice, '<strong>停机通知</strong>')
   assert.equal((await service.updateSystem({ workbenchNotice: '' })).workbenchNotice, undefined)
+  assert.equal((await service.system()).panSearchUrl, 'http://localhost:8888/api/search')
+  await service.updateSystem({ panSearchUrl: 'http://localhost:8889/api/search' })
+  await assert.rejects(service.updateSystem({ panSearchUrl: 'file:///etc/passwd' }), (error) => error.status === 400)
 })
 
 test('AI Chat 有效状态默认开启，可关闭并兼容旧客户端更新', async () => {
@@ -44,4 +47,12 @@ test('AI Chat 数据查询及写入包含有效状态', async () => {
   assert.match(queries[1].sql, /SELECT ai_chat_enabled/)
   assert.match(queries[2].sql, /ai_chat_enabled=\$9/)
   assert.equal(queries[2].params[8], false)
+})
+
+test('基础配置读取和更新 PanSou API 地址', async () => {
+  const queries = []
+  const repository = createSettingsRepository({ async query(sql, params) { queries.push({ sql, params }); return { rows: [{ pan_search_url: 'http://localhost:8889/api/search' }] } } })
+  assert.equal(await repository.readPanSearchUrl(), 'http://localhost:8889/api/search')
+  await repository.updateSystem(Array(12).fill('value'))
+  assert.match(queries[1].sql, /pan_search_url=\$12/)
 })

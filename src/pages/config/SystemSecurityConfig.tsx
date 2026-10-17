@@ -62,6 +62,8 @@ export default function SystemSecurityConfig() {
       <Typography.Title level={5}>登录与页脚</Typography.Title>
       <Form.Item name="loginText" label="登录界面文字"><Input maxLength={255} placeholder="控制台" /></Form.Item>
       <Form.Item name="footerRecord" label="页脚备案信息" extra={'支持 HTML，例如：<a href="https://beian.miit.gov.cn">京ICP备XXXXXXXX号</a>'}><Input.TextArea rows={3} maxLength={5000} placeholder={'例如：<a href="https://beian.miit.gov.cn">京ICP备XXXXXXXX号</a>'} /></Form.Item>
+      <Typography.Title level={5}>网盘搜索</Typography.Title>
+      <Form.Item name="panSearchUrl" label="网盘搜索源地址" rules={[{ required: true, message: '请输入网盘搜索源地址' }, { type: 'url', message: '请输入有效的 HTTP(S) 地址' }]} extra="兼容 PanSou API。若 PanSou 运行在宿主机且本平台通过 Docker 启动，请使用 host.docker.internal，例如：http://host.docker.internal:8889/api/search"><Input maxLength={500} placeholder="http://localhost:8888/api/search" /></Form.Item>
       <Typography.Title level={5}>工作台通知</Typography.Title>
       <Form.Item name="workbenchNotice" label="跑马灯消息" extra="留空则不显示；支持安全 HTML 标签，如加粗和链接"><Input.TextArea rows={3} maxLength={5000} placeholder={'例如：系统将于今晚维护，<a href="https://example.com">查看详情</a>'} /></Form.Item>
       <Typography.Title level={5}>控制台管理</Typography.Title>

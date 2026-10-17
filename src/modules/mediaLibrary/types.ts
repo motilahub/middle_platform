@@ -118,7 +118,7 @@ export interface PanResource {
   id: string
   title: string
   providerName: string
-  storageType: 'baidu' | 'quark' | 'uc' | 'xunlei' | 'guangya'
+  storageType: 'baidu' | 'aliyun' | 'quark' | 'guangya' | 'tianyi' | 'uc' | 'mobile' | '115' | 'pikpak' | 'xunlei' | '123' | 'magnet' | 'ed2k'
   sourceLine?: string
   url?: string
   resolveToken?: string
@@ -127,6 +127,7 @@ export interface PanResource {
 export interface PanSearchResponse {
   keyword: string
   results: PanResource[]
+  sources?: Array<{ id: string; name: string; status: 'success' | 'partial' | 'failed'; count: number; message?: string }>
 }
 
 export interface PlayableResource {
