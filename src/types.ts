@@ -71,6 +71,7 @@ export interface SystemSettings {
   loginText: string
   footerRecord?: string
   workbenchNotice?: string
+  panSearchUrl: string
   showWorkbenchHeader: boolean
   showAiChatHeader: boolean
   aiChatEnabled: boolean

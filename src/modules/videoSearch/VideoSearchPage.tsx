@@ -8,10 +8,18 @@ import type { VideoSearchResult, VideoSearchSourceStatus, VideoStorageType } fro
 
 const STORAGE_META: Record<VideoStorageType, { label: string; color: string }> = {
   baidu: { label: '百度', color: 'blue' },
+  aliyun: { label: '阿里云', color: 'geekblue' },
   quark: { label: '夸克', color: 'green' },
+  tianyi: { label: '天翼云', color: 'volcano' },
+  mobile: { label: '移动云盘', color: 'gold' },
+  115: { label: '115', color: 'lime' },
+  pikpak: { label: 'PikPak', color: 'magenta' },
   uc: { label: 'UC', color: 'orange' },
   xunlei: { label: '迅雷', color: 'purple' },
   guangya: { label: '光鸭', color: 'cyan' },
+  123: { label: '123云盘', color: 'blue' },
+  magnet: { label: '磁力', color: 'default' },
+  ed2k: { label: '电驴', color: 'default' },
 }
 
 const PAGE_SIZE = 20

@@ -2,7 +2,7 @@ import express from 'express'
 import { createPanSouProvider } from './pansouProvider.js'
 import { createResolveToken, readResolveToken } from './token.js'
 
-const SOURCE_IDS = new Set(['tiancha'])
+const SOURCE_IDS = new Set(['pansou'])
 
 function validateKeyword(value) {
   const keyword = String(value || '').trim()
@@ -17,7 +17,7 @@ export function createVideoSearchRouter({ tokenSecret, providerOptions, requireA
   if (!tokenSecret) throw new Error('天影查模块缺少令牌签名密钥')
   if (typeof requireAuth !== 'function') throw new Error('天影查模块缺少登录校验中间件')
   const router = express.Router()
-  const providers = new Map([['tiancha', createPanSouProvider(providerOptions)]])
+  const providers = new Map([['pansou', createPanSouProvider(providerOptions)]])
 
   router.use((_req, res, next) => {
     res.setHeader('Cache-Control', 'no-store')
@@ -34,10 +34,10 @@ export function createVideoSearchRouter({ tokenSecret, providerOptions, requireA
       const output = await provider.search(keyword)
       return {
         source: { id: sourceId, name: provider.name, status: output.status, count: output.results.length, message: output.message },
-        results: output.results.map(({ rawToken, stoken, ...item }) => ({
+        results: output.results.map((item) => item.url ? item : ({
           ...item,
           linkMode: 'resolve',
-          resolveToken: createResolveToken({ provider: sourceId, rawToken, title: item.title, stoken }, tokenSecret),
+          resolveToken: createResolveToken({ provider: sourceId, rawToken: item.rawToken, title: item.title, stoken: item.stoken }, tokenSecret),
         })),
       }
     }))
@@ -73,8 +73,8 @@ export const manifest = {
   enabledByDefault: true,
 }
 
-export function createModule({ sessionSecret, requireAuth }) {
-  const router = createVideoSearchRouter({ tokenSecret: sessionSecret, requireAuth })
+export function createModule({ sessionSecret, requireAuth, settingsModule, providerOptions = {} }) {
+  const router = createVideoSearchRouter({ tokenSecret: sessionSecret, requireAuth, providerOptions: { ...providerOptions, getBaseUrl: providerOptions.getBaseUrl || (() => settingsModule?.service.panSearchUrl()) } })
   return {
     manifest,
     async migrate({ pool }) {

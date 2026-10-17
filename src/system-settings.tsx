@@ -7,6 +7,7 @@ const defaults: SystemSettings = {
   systemTitle: 'Motila',
   browserTitle: 'Motila',
   loginText: '控制台',
+  panSearchUrl: 'http://localhost:8888/api/search',
   showWorkbenchHeader: true,
   showAiChatHeader: true,
   aiChatEnabled: true,

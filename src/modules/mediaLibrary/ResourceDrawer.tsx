@@ -1,4 +1,4 @@
-import { App, Button, Drawer, Empty, Input, Segmented, Spin, Table, Tag, Typography } from 'antd'
+import { Alert, App, Button, Drawer, Empty, Input, Segmented, Spin, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { SearchOutlined } from '@ant-design/icons'
 import { useEffect, useMemo, useState } from 'react'
@@ -9,11 +9,21 @@ type StorageFilter = 'all' | PanResource['storageType']
 
 const STORAGE_META: Record<PanResource['storageType'], { label: string; color: string }> = {
   baidu: { label: '百度', color: 'blue' },
+  aliyun: { label: '阿里云', color: 'geekblue' },
   quark: { label: '夸克', color: 'green' },
+  tianyi: { label: '天翼云', color: 'volcano' },
+  mobile: { label: '移动云盘', color: 'gold' },
+  115: { label: '115', color: 'lime' },
+  pikpak: { label: 'PikPak', color: 'magenta' },
   uc: { label: 'UC', color: 'orange' },
   xunlei: { label: '迅雷', color: 'purple' },
   guangya: { label: '光鸭', color: 'cyan' },
+  123: { label: '123云盘', color: 'blue' },
+  magnet: { label: '磁力', color: 'default' },
+  ed2k: { label: '电驴', color: 'default' },
 }
+
+const STORAGE_ORDER: PanResource['storageType'][] = ['quark', 'baidu', 'aliyun', 'xunlei', 'uc', '115', 'tianyi', 'mobile', 'pikpak', '123', 'guangya', 'magnet', 'ed2k']
 
 export default function ResourceDrawer({ item, open, darkMode, onClose }: {
   item: MediaItem
@@ -23,6 +33,7 @@ export default function ResourceDrawer({ item, open, darkMode, onClose }: {
 }) {
   const { message } = App.useApp()
   const [results, setResults] = useState<PanResource[]>()
+  const [searchError, setSearchError] = useState('')
   const [loading, setLoading] = useState(false)
   const [resolvingId, setResolvingId] = useState<string>()
   const [storageFilter, setStorageFilter] = useState<StorageFilter>('all')
@@ -34,13 +45,19 @@ export default function ResourceDrawer({ item, open, darkMode, onClose }: {
     if (!open) return
     let active = true
     setResults(undefined)
+    setSearchError('')
     setStorageFilter('all')
     setResultKeyword('')
     setPage(1)
     setSelectedIds([])
     setLoading(true)
     mediaLibraryApi.searchPan(item.title)
-      .then((output) => { if (active) setResults(output.results) })
+      .then((output) => {
+        if (!active) return
+        setResults(output.results)
+        const failedSources = (output.sources || []).filter((source) => source.status === 'failed')
+        if (!output.results.length && failedSources.length) setSearchError(failedSources.map((source) => source.message || '搜索服务暂时不可用').join('；'))
+      })
       .catch((error) => { if (active) { setResults([]); message.error((error as Error).message) } })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
@@ -81,7 +98,7 @@ export default function ResourceDrawer({ item, open, darkMode, onClose }: {
   }), [normalizedKeyword, results, storageFilter])
   const storageOptions = useMemo(() => [
     { label: `全部 ${results?.length || 0}`, value: 'all' },
-    ...Object.entries(STORAGE_META).map(([value, meta]) => ({ label: `${meta.label} ${storageCounts[value] || 0}`, value })),
+    ...STORAGE_ORDER.map((value) => ({ label: `${STORAGE_META[value].label} ${storageCounts[value] || 0}`, value })),
   ], [results, storageCounts])
   const copySelectedNames = async () => {
     try {
@@ -114,6 +131,8 @@ export default function ResourceDrawer({ item, open, darkMode, onClose }: {
             ? <Table<PanResource> className="media-resource-table" size="small" rowKey="id" columns={columns} dataSource={filteredResults} rowSelection={{ selectedRowKeys: selectedIds, preserveSelectedRowKeys: true, onChange: (keys) => setSelectedIds(keys as string[]) }} scroll={{ x: 530 }} pagination={{ current: page, pageSize: 10, onChange: setPage, showSizeChanger: false, showTotal: (total) => `共 ${total} 条` }} />
             : <Empty className="media-resource-empty" image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有符合筛选条件的资源" />}
         </>
-        : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无网盘资源" />}
+        : searchError
+          ? <Alert type="warning" showIcon message="网盘资源搜索失败" description={searchError} />
+          : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无网盘资源" />}
   </Drawer>
 }
